@@ -1,0 +1,96 @@
+
+<link href="{{=URL('static', 'DataTables-1.10.7/media/css/dataTables.bootstrap.css')}}" rel="stylesheet" type="text/css"/>
+<link href="{{=URL('static', 'css/select2.min.css')}}" rel="stylesheet" type="text/css"/> -->
+
+<script>
+
+function bulkMenu(mode) {
+    var options = '';
+    switch (mode) {
+        case 'element':
+            pos_element = 'elements-table_length';
+            options = '<option value="edit">Edit</option>';
+            break;
+        case 'branch':
+            pos_element = 'branches-table_length';
+            break;
+        case 'category':
+            pos_element = 'categories-table_length';
+            options = '<option value="edit">Edit</option>';
+            break;
+        case 'tag':
+            pos_element = 'tags-table_length';
+            options = '<option value="delete">Delete</option>';
+            break;
+        default:
+            break;
+    }
+    var control_id = mode + '-bulk-control';
+    try {
+        document.getElementById(control_id).parentNode.removeChild(document.getElementById(control_id));
+    } catch (TypeError) {
+    }
+    
+    var b = '<div id="'+control_id+'" class="table-addon-btns">' +
+    '<select id="bulk-action" class="form-control input-sm">' +
+    '<option value="">Bulk Actions</option>' + options + '</select>' +
+    '<button id="bulk-apply" class="btn btn-default btn-sm" disabled>Apply</button>' +
+    '</div>';
+    document.getElementById(pos_element).insertAdjacentHTML('afterbegin', b);
+}
+
+function menuResize() {
+    var lefth = $('.left-part').height() + 150;
+    var homeh = $('#home').height() + 100;
+    
+    var hh = Math.max(homeh, lefth);
+    if (isNaN(hh)) { hh = 0 };
+    var height = Math.max($(window).height()-51, hh);
+    
+    $('#admin-menu-back').height(height);
+}
+window.onresize = function() {
+    menuResize();
+};
+
+$(document).ready(function() {
+    menuResize();
+    
+    $('#{{=page}}').parent('li').addClass('current');
+    $($('#{{=page}}').attr('href')).show();
+    
+    $(document).on('click', '.admin-submenu > li', function() {
+        $(this).parent().find('li').removeClass('current').end().end().addClass('current');
+        $('.page').hide();
+        $($(this).find('a').attr('href')).show();
+        $('html,body').animate({scrollTop:0},1);
+    });
+    
+    // menu header hover
+    $(document).on('mouseenter', '.menu-header.notcurrent', function() {
+        var $this = $(this);
+        //$this.find('.admin-submenu').addClass('opened');
+        $this.addClass('opened');
+    });
+    $(document).on('mouseleave', '.menu-header.notcurrent', function() {
+        var $this = $(this);
+        //$this.find('.admin-submenu').removeClass('opened');
+        $this.removeClass('opened');
+    });
+    
+    $(document).on('change', '#bulk-action', function() {
+        if ($(this).val() !== '') {
+            $('#bulk-apply').prop('disabled', false);
+        } else {
+            $('#bulk-apply').prop('disabled', true);
+        }
+    });
+    
+});
+</script>
+
+<script src="{{=URL('static','DataTables-1.10.7/media/js/jquery.dataTables.min.js')}}" type="text/javascript"></script>
+<script src="{{=URL('static','DataTables-1.10.7/media/js/dataTables.bootstrap.js')}}" type="text/javascript"></script>
+<!-- <script src="{{=URL('static','DataTables-1.10.7/media/js/dataTables.fixedHeader.min.js')}}" type="text/javascript"></script>
+<script src="{{=URL('static','DataTables-1.10.7/extensions/TableTools/js/dataTables.tableTools.min.js')}}" type="text/javascript"></script> -->
+<script src="{{=URL('static','js/select2.min.js')}}" type="text/javascript"></script>

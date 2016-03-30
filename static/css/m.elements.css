@@ -1,0 +1,229 @@
+h3 {
+    margin-bottom: 20px;
+}
+thead, tfoot {
+    background-color: #fff;
+}
+table a, table a:visited, table a:link, table a:active {
+    text-decoration: none;
+}
+th, td {
+    border-right-width: 0 !important;
+}
+
+.dataTable {
+    width: 100% !important;
+}
+td.centered {
+    text-align: center;
+}
+td.righted {
+    text-align: right;
+}
+
+.page {
+    margin: 30px 0;
+}
+
+tr:hover .row-menu {
+    visibility: visible;
+}
+.row-menu {
+    color: #ddd;
+    font-size: 13px;
+    visibility: hidden;
+    padding: 2px 0 0;
+}
+.texted-icon {
+    min-width: 30px;
+}
+.icon-text {
+    color: #eee;
+    font-weight: bold;
+}
+.text-label {
+    color: #666;
+    font-weight: bold;
+}
+
+.fullname {
+    margin-bottom: 10px;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+/* form */
+.form-div {
+    padding-top: 10px;
+    min-width: 763px;
+}
+.form-body {
+    margin-right: 300px;
+    padding: 0;
+}
+.left-part {
+    position: relative;
+    float: left;
+    width: 100%;
+    min-width: 463px;
+}
+.right-part {
+    float: right;
+    margin-right: -300px;
+    margin-top: -29px;
+    width: 280px;
+}
+#tag-input {
+    display: inline-block;
+    width: 180px;
+    margin: 0 4px 0 0;
+}
+#tag-add {
+    margin-top: -4px;
+}
+.tag-board {
+    margin: 5px 0 10px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    line-height: 1.8em;
+    -webkit-border-radius: 4px;
+    border-radius: 4px;
+}
+
+.form-box-header {
+    padding: 8px 12px;
+    margin: 0;
+    line-height: 1.4;
+    font-size: 14px;
+    border-bottom: 1px solid #ddd;
+}
+.form-box {
+    position: relative;
+    margin-bottom: 20px;
+    min-width: 255px;
+    border: 1px solid #ccc;
+    -webkit-box-shadow: 0 1px 1px rgba(0, 0, 0, .04);
+    box-shadow: 0 1px 1px rgba(0, 0, 0, .04);
+    background: #fff;
+}
+.form-box .inside {
+    margin: 6px 0 0;
+    padding: 0 12px 12px;
+    line-height: 1.4em;
+    font-size: 13px;
+}
+.inside > .form-group {
+    margin-bottom: 10px;
+}
+
+.holder {
+    border: 3px dashed #ccc;
+    height: 138px;
+    margin: 10px;
+}
+.holder.hover {
+    border-color: #0c0;
+}
+.holder.has-error {
+    border-color: #A94442;
+}
+.holder img {
+    display: block;
+    max-width: 250px;
+    max-height: 130px;
+}
+.holder p {
+    margin: 10px;
+    font-size: 14px;
+}
+progress {
+    width: 100%;
+}
+progress:after {
+    content: '%';
+}
+.fail {
+    background: #c00;
+    padding: 2px;
+    color: #fff;
+}
+.inside > select {
+    margin-bottom: 10px;
+}
+
+.tag-link {
+    font-size: 11px;
+    text-decoration: underline;
+}
+.tag-link:not(:last-child) {
+    margin-right: 8px;
+}
+
+.dragdrophint {
+    position: absolute;
+    top: 105px;
+    left: 50px;
+    font-weight: bold;
+    font-size: 20px;
+    color: #ccc;
+}
+.manualupload-div {
+    position: relative;
+    width: 250px;
+    margin: 0 auto;
+}
+.videoupload {
+    height: 0;
+}
+.manualupload, .videoupload {
+    width: 250px;
+    opacity: 0;
+}
+.manualupload-fakebtn-div, .videoupload-div {
+    display: block;
+    position: absolute;
+    width: 250px;
+    cursor: pointer;
+    top: 0;
+    right: 0;
+    text-align: center;
+}
+.btn-group > .btn:not(:first-child) {
+    border-left: 0;
+}
+#popup-window > .modal-dialog {
+    top: 200px;
+}
+
+/* element quick edit */
+.inline-header {
+    font-size: 1em;
+    font-weight: bold;
+    color: #555;
+}
+.inline-group {
+    margin: .2em 0;
+}
+.inline-label {
+    display: block;
+    float: left;
+    width: 6em;
+    margin: 0;
+    padding: 0;
+    font-size: 12px;
+    font-style: italic;
+    line-height: 2.5;
+}
+.inline-input {
+    display: block;
+    margin-left: 6em;
+}
+.inline-category-label {
+    text-transform: uppercase;
+}
+
+.inline-edit-element-notes, .bulk-edit-element-notes {
+    width: 100% !important;
+    height: 65px !important;
+    resize: none;
+}

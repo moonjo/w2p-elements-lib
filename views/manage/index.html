@@ -1,0 +1,902 @@
+{{extend 'layout_bootstrap3.html'}}
+{{include 'common.html'}}
+{{include 'common_manage.html'}}
+
+{{
+import os
+xelements_css = '%sstatic/%s' % (request.folder, 'css/xelements.css')
+xelements_mtime = str(int(os.path.getmtime(xelements_css)))
+manage_css = '%sstatic/%s' % (request.folder, 'css/manage.css')
+manage_mtime = str(int(os.path.getmtime(manage_css)))
+}}
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/xelements.css')}}?{{=xelements_mtime}}" />
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/manage.css')}}?{{=manage_mtime}}" />
+
+<style>
+text {
+  font-weight: 600;
+}
+.title {
+    font-size: 19px;
+    text-anchor: middle;
+    fill: #555;
+}
+.hint, .bar-label {
+    text-anchor: middle;
+    fill: #555;
+}
+.bar-label {
+    font-weight: 700;
+}
+.axis path, .axis line {
+    fill: none;
+    stroke: #000;
+    shape-rendering: crispEdges;
+}
+.axis text {
+    font-family: sans-serif;
+    font-size: 11px;
+}
+.grid {
+    stroke: #adadad;
+    stroke-width: 1px;
+}
+
+.arc {
+    stroke: #f1f1f1;
+    stroke-width: 2px;
+}
+.legend tr{ border-bottom:1px solid grey; }
+.legend tr:first-child{ border-top:1px solid grey; }
+.legend{
+    margin-bottom:76px;
+    display:inline-block;
+    border-collapse: collapse;
+    border-spacing: 0px;
+}
+.legend td{
+    padding:4px 5px;
+    vertical-align:bottom;
+}
+.legendFreq, .legendPerc{
+    align:right;
+    width:50px;
+}
+.chart-div {
+    margin-top: 30px;
+    margin-bottom: 80px;
+}
+#topelements {
+    float: left;
+}
+#categorylegend {
+  position: absolute;
+  top: 125px;
+  left: 715px;
+  width: 130px;
+  text-align: center;
+  color: #555;
+  font-size: 8pt;
+  z-index: -1;
+}
+
+#legend {
+  padding: 10px 0 0 3px;
+}
+#chart {
+  position: relative;
+}
+#chart path {
+  stroke: #f1f1f1;
+  stroke-width: 2px;
+}
+#sequence {
+    margin-left: 30px;
+}
+#explanation {
+  position: absolute;
+  top: 315px;
+  left: 305px;
+  width: 140px;
+  text-align: center;
+  color: #555;
+  z-index: -1;
+}
+#percentage {
+  font-size: 2.5em;
+}
+#endlabel {
+    text-anchor: start;
+    font-weight: 700;
+    fill: #555;
+}
+.chart-sm {
+    margin-right: 50px;
+}
+</style>
+
+<!-- BODY -->
+<div class="container-fluid">
+  <div id="admin-menu-back"></div>
+  <div id="admin-menu-div">
+    {{=menu}}
+  </div>
+  <div id="admin-body">
+    <div id="home" class="page">
+      
+      <div id="stat-charts" class="chart-div">
+        <div id='topelements' class="chart-sm"></div>
+        <div class="chart-sm">
+          <div id='categorypie' class=""></div>
+          <div id='categorylegend' class=""></div>
+        </div>
+      </div>
+      
+      <div id="tag-chart" class="chart-div">
+        <div id="tagcloud" class=""></div>
+      </div>
+      
+      <div id="overview-chart" class="">
+        <div id="sequence">
+          <div id="chart">
+            <div id="explanation" style="visibility:hidden;">
+              <span id="percentage"></span><br/><span id="description"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+</div>
+
+<!-- scripting -->
+<script src="{{=URL('static','js/d3.v3.min.js')}}" type="text/javascript"></script>
+<script src="{{=URL('static','js/d3.layout.cloud.js')}}" type="text/javascript"></script>
+
+<script>
+function responsivefy(svg) {
+    // get container + svg aspect ratio
+    var container = d3.select(svg.node().parentNode),
+        width = parseInt(svg.style("width")),
+        height = parseInt(svg.style("height")),
+        aspect = width / height;
+    
+    // add viewBox and preserveAspectRatio properties,
+    // and call resize so that svg resizes on inital page load
+    svg.attr("viewBox", "0 0 " + width + " " + height)
+        .attr("perserveAspectRatio", "xMinYMid")
+        .call(resize);
+    
+    // to register multiple listeners for same event type, 
+    // you need to add namespace, i.e., 'click.foo'
+    // necessary if you call invoke this function for multiple svgs
+    // api docs: https://github.com/mbostock/d3/wiki/Selections#on
+    d3.select(window).on("resize." + container.attr("id"), resize);
+    
+    // get width of container and resize svg to fit it
+    function resize() {
+        var targetWidth = parseInt(container.style("width"));
+        svg.attr("width", targetWidth);
+        svg.attr("height", Math.round(targetWidth / aspect));
+    }
+}
+
+function child_colour(t) {
+    if (t.children) {
+        var e = t.children.map(n),
+            r = d3.hsl(e[0]),
+            a = d3.hsl(e[1]);
+        return d3.hsl((r.h + a.h) / 2, 1.2 * r.s, r.l / 1.2)
+    }
+    return t.colour || "#fff"
+}
+
+function luminosity(c) {
+    return .299 * c.r + .587 * c.g + .114 * c.b;
+}
+
+
+/*******************************************************************
+* Bookmark Bar Graph
+*******************************************************************/
+
+var title_height = 25;
+var barchart_width = 400;
+var barchart_height = 250;
+var yAxis_width = 10;
+var xAxis_height = 50;
+
+var b_width = barchart_width - yAxis_width;
+var b_height = barchart_height - xAxis_height;
+var y_height = barchart_height - title_height + 10;
+
+var bookmark_data = {{=XML(bookmark_data)}};
+bookmark_data.sort(function(a,b) { return d3.ascending(a.count,b.count); })
+
+var max_count = d3.max(bookmark_data, function(d) { return d.count; }) + 1;
+
+var grid = d3.range(max_count).map(function(i){
+    return {'x1':0,'y1':0,'x2':0,'y2':b_height};
+});
+
+var tickVals = grid.map(function(d,i){
+    return i;
+});
+
+var xscale = d3.scale.linear()
+               .domain([0, max_count])
+               .range([0, b_width]);
+
+var yscale = d3.scale.linear()
+               .domain([0, bookmark_data.length])
+               .range([b_height, 0]);
+
+var xAxis = d3.svg.axis()
+                  .orient('bottom').scale(xscale)
+                  .tickFormat(function(d,i) { return d; })
+                  .tickValues(d3.range(max_count+1));
+
+var yAxis = d3.svg.axis()
+              .orient('left')
+              .scale(yscale)
+              .ticks(0);
+
+var canvas = d3.select('#topelements')
+               .append('svg')
+               .attr({'width':barchart_width+10,'height':barchart_height+20});
+
+canvas.append('text')
+      .attr({
+          'class':'title',
+          'x': barchart_width / 2,
+          'y': 15,
+      })
+      .text('Top 5 Bookmarked Elements');
+
+function make_x_axis() {
+    return d3.svg.axis().scale(xscale).orient('bottom').ticks(max_count);
+}
+
+var grids = canvas.append('g')
+                  .attr('class','grid')
+                  .attr('transform','translate(10,'+y_height+')')
+                  .call(make_x_axis()
+                      .tickSize(-b_height, 0, 0)
+                      .tickFormat('')
+                  );
+
+var chart = canvas.append('g')
+                  .attr('transform', 'translate('+yAxis_width+',0)')
+                  .attr('id','bars')
+                  .selectAll('a')
+                  .data(bookmark_data)
+                  .enter()
+                  .append('a')
+                  .attr({
+                      'xlink:href':function(d) {
+                          return d.url;
+                      },
+                      'target': '_blank'
+                  });
+
+chart.append('rect')
+     .attr('height',30)
+     .attr({'x':0,'y':function(d,i) {
+         return yscale(i) * 1;
+     }})
+     .style('fill',function(d,i) {
+         return d.colour;
+     })
+     .attr('width',function(d){
+         return 0;
+     });
+
+chart.append('text')
+     .text(function(d) {return d.name;})
+     .attr({
+         'class': 'bar-label',
+         'x': function(d) {
+             return xscale(d.count) / 2;
+         },
+         'y':function(d,i) {
+             return yscale(i) * 1 + 20;
+         },
+     })
+     .style('fill', function(d) {
+         return luminosity(d3.rgb(d.colour)) < 125 ? '#eee' : '#444';
+     })
+     .style({'font-size':'14px'});
+
+var transit = d3.select('svg')
+                .selectAll('rect')
+                .data(bookmark_data)
+                .transition()
+                .duration(1000)
+                .attr('width', function(d) {
+                    return xscale(d.count);
+                });
+                
+
+// Append axes last
+canvas.append('g')
+      .attr('class', 'axis')
+      .attr('transform', 'translate(10,'+y_height+')')
+      .call(xAxis);
+
+canvas.append('text')
+      .attr({
+          'class':'hint',
+          'x': barchart_width / 2,
+          'y': barchart_height+20,
+      })
+      .text('# of times bookmarked');
+
+
+/*******************************************************************
+* Bookmark Pie Chart
+*******************************************************************/
+
+function pieChart(id, pD){
+    var pC ={}
+    var pieDim ={w:250, h: 250};
+    pieDim.r = Math.min(pieDim.w, pieDim.h) / 2;
+    var h_adjust = 30;
+            
+    // create svg for pie chart
+    var canvas = d3.select(id).append("svg")
+                   .attr("width", pieDim.w)
+                   .attr("height", pieDim.h+h_adjust);
+    
+    canvas.append('text')
+          .attr({
+              'class':'title',
+              'x': pieDim.w / 2,
+              'y': 15,
+          })
+          .text('Bookmarks by Category');
+    
+    var piesvg = canvas.append("g")
+                       .attr("transform", "translate("+pieDim.w/2+","+(pieDim.h/2+h_adjust)+")");
+    
+    // create function to draw the arcs of the pie slices
+    var arc = d3.svg.arc().outerRadius(pieDim.r - 10).innerRadius(0);
+    
+    // create a function to compute the pie slice angles
+    var pie = d3.layout.pie().sort(null).value(function(d) { return d.count; });
+    
+    // Draw the pie slices
+    var arc = d3.svg.arc().outerRadius(pieDim.r).innerRadius(pieDim.r - 20);
+    
+    var g = piesvg.selectAll('.arc')
+                  .data(pie(pD))
+                  .enter()
+                  .append('g')
+                  .attr('class', 'arc');
+    g.append('path')
+     .attr('d', arc)
+     .style('fill', function(d) { return d.data.colour; })
+     .transition().duration(750)
+     .attrTween('d', function(d) {
+         var i = d3.interpolate(d.startAngle + 0.1, d.endAngle);
+         return function(t) { d.endAngle = i(t); return arc(d); }
+     });
+    
+    // create function to update pie-chart. This will be used by histogram
+    pC.update = function(nD){
+        piesvg.selectAll("path").data(pie(nD)).transition().duration(500)
+            .attrTween("d", arcTween);
+    }
+    
+    // Utility function to be called on mouseover a pie slice
+    function pieMouseover(d){
+        // call the update function of histogram with new data
+        //hG.update(fData.map(function(v){return [v.State,v.freq[d.data.type]];}),segColor(d.data.type));
+    }
+    //Utility function to be called on mouseout a pie slice
+    function pieMouseout(d){
+        // call the update function of histogram with all data
+        //hG.update(fData.map(function(v){return [v.State,v.total];}), barColor);
+    }
+    
+    // Animating the pie-slice requiring a custom function which specifies
+    // how the intermediate paths should be drawn
+    function arcTween(a) {
+        var i = d3.interpolate(this._current, a);
+        this._current = i(0);
+        return function(t) { return arc(i(t)); };
+    }    
+    return pC;
+}
+
+// function to handle legend
+function legend(id, lD){
+    var leg = {};
+    
+    // create table for legend.
+    var legend = d3.select(id).append("table").attr('class','legend');
+    
+    // create one row per segment.
+    var tr = legend.append("tbody")
+                   .selectAll("tr")
+                   .data(lD)
+                   .enter()
+                   .append("tr")
+                   .filter(function(d) {
+                       return d.count > 5;
+                   });
+    
+    // create the first column for each segment
+    tr.append("td")
+      .append("svg")
+      .attr("width", '16')
+      .attr("height", '16')
+      .append("rect")
+      .attr("width", '16')
+      .attr("height", '16')
+      .attr("fill",function(d){ return d.colour; });
+       
+    // create the second column for each segment.
+    tr.append("td").text(function(d){ return d.name;});
+    
+    // create the third column for each segment.
+    tr.append("td").attr("class",'legendFreq')
+        .text(function(d){ return d3.format(",")(d.count);});
+    
+    // create the fourth column for each segment.
+    tr.append("td").attr("class",'legendPerc')
+        .text(function(d){ return getLegend(d,lD);});
+    
+    // Utility function to be used to update the legend.
+    leg.update = function(nD){
+        // update the data attached to the row elements.
+        var l = legend.select("tbody").selectAll("tr").data(nD);
+        
+        // update the frequencies.
+        l.select(".legendFreq").text(function(d){ return d3.format(",")(d.count);});
+        
+        // update the percentage column.
+        l.select(".legendPerc").text(function(d){ return getLegend(d,nD);});
+    }
+    
+    function getLegend(d,aD){ // Utility function to compute percentage.
+        return d3.format("%")(d.count/d3.sum(aD.map(function(v){ return v.count; })));
+    }
+    return leg;
+}
+
+var category_data = {{=XML(category_data)}};
+pieChart('#categorypie', category_data);
+legend('#categorylegend', category_data);
+
+
+/*******************************************************************
+* Tag Cloud
+*******************************************************************/
+
+var cloud_w = 800;
+var cloud_h = 460;
+
+var tag_words = [{"tag":"study","count":40},{"tag":"motion","count":15},{"tag":"forces","count":10},{"tag":"electricity","count":15},{"tag":"movement","count":10},{"tag":"relation","count":5},{"tag":"things","count":10},{"tag":"force","count":5},{"tag":"ad","count":5},{"tag":"energy","count":85},{"tag":"living","count":5},{"tag":"nonliving","count":5},{"tag":"laws","count":15},{"tag":"speed","count":45},{"tag":"velocity","count":30},{"tag":"define","count":5},{"tag":"constraints","count":5},{"tag":"universe","count":10},{"tag":"physics","count":120},{"tag":"describing","count":5},{"tag":"matter","count":90},{"tag":"physics-the","count":5},{"tag":"world","count":10},{"tag":"works","count":10},{"tag":"science","count":70},{"tag":"interactions","count":30},{"tag":"studies","count":5},{"tag":"properties","count":45},{"tag":"nature","count":40},{"tag":"branch","count":30},{"tag":"concerned","count":25},{"tag":"source","count":40},{"tag":"google","count":10},{"tag":"defintions","count":5},{"tag":"two","count":15},{"tag":"grouped","count":15},{"tag":"traditional","count":15},{"tag":"fields","count":15},{"tag":"acoustics","count":15},{"tag":"optics","count":15},{"tag":"mechanics","count":20},{"tag":"thermodynamics","count":15},{"tag":"electromagnetism","count":15},{"tag":"modern","count":15},{"tag":"extensions","count":15},{"tag":"thefreedictionary","count":15},{"tag":"interaction","count":15},{"tag":"org","count":25},{"tag":"answers","count":5},{"tag":"natural","count":15},{"tag":"objects","count":5},{"tag":"treats","count":10},{"tag":"acting","count":5},{"tag":"department","count":5},{"tag":"gravitation","count":5},{"tag":"heat","count":10},{"tag":"light","count":10},{"tag":"magnetism","count":10},{"tag":"modify","count":5},{"tag":"general","count":10},{"tag":"bodies","count":5},{"tag":"philosophy","count":5},{"tag":"brainyquote","count":5},{"tag":"words","count":5},{"tag":"ph","count":5},{"tag":"html","count":5},{"tag":"lrl","count":5},{"tag":"zgzmeylfwuy","count":5},{"tag":"subject","count":5},{"tag":"distinguished","count":5},{"tag":"chemistry","count":5},{"tag":"biology","count":5},{"tag":"includes","count":5},{"tag":"radiation","count":5},{"tag":"sound","count":5},{"tag":"structure","count":5},{"tag":"atoms","count":5},{"tag":"including","count":10},{"tag":"atomic","count":10},{"tag":"nuclear","count":10},{"tag":"cryogenics","count":10},{"tag":"solid-state","count":10},{"tag":"particle","count":10},{"tag":"plasma","count":10},{"tag":"deals","count":5},{"tag":"merriam-webster","count":5},{"tag":"dictionary","count":10},{"tag":"analysis","count":5},{"tag":"conducted","count":5},{"tag":"order","count":5},{"tag":"understand","count":5},{"tag":"behaves","count":5},{"tag":"en","count":5},{"tag":"wikipedia","count":5},{"tag":"wiki","count":5},{"tag":"physics-","count":5},{"tag":"physical","count":5},{"tag":"behaviour","count":5},{"tag":"collinsdictionary","count":5},{"tag":"english","count":5},{"tag":"time","count":35},{"tag":"distance","count":35},{"tag":"wheels","count":5},{"tag":"revelations","count":5},{"tag":"minute","count":5},{"tag":"acceleration","count":20},{"tag":"torque","count":5},{"tag":"wheel","count":5},{"tag":"rotations","count":5},{"tag":"resistance","count":5},{"tag":"momentum","count":5},{"tag":"measure","count":10},{"tag":"direction","count":10},{"tag":"car","count":5},{"tag":"add","count":5},{"tag":"traveled","count":5},{"tag":"weight","count":5},{"tag":"electrical","count":5},{"tag":"power","count":5}];
+//var tag_words = {{=XML(tag_data)}};
+var largest = d3.max(tag_words, function(d) { return d.count; });
+var smallest = d3.min(tag_words, function(d) { return d.count; });
+
+var font_size_scale = d3.scale.linear().domain([smallest,largest]).range([15,160]);
+
+var color = d3.scale.linear()
+                    .domain([0,1,2,3,4,5,6,10,15,20,100])
+                    .range(["#ddd", "#ccc", "#bbb", "#aaa", "#999", "#888", "#777", "#666", "#555", "#444", "#333", "#222"]);
+
+var fill = d3.scale.category20();
+
+d3.layout.cloud().size([cloud_w, cloud_h])
+                 .words(tag_words)
+                 .padding(5)
+                 .rotate(0)
+                 .fontSize(function(d) { return d.count; })
+                 .on("end", clouddraw)
+                 .start();
+
+function clouddraw(words) {
+    var cloud = d3.select("#tagcloud")
+                  .append("svg")
+                  .attr("width", cloud_w)
+                  .attr("height", cloud_h)
+                  .attr("class", "wordcloud");
+    // title
+    cloud.append('text')
+         .attr({
+             'class':'title',
+             'text-decoration':'underline',
+             'x': 750 / 2,
+             'y': 15,
+         }).text('Popular Tags');
+    // words
+    cloud.append("g")
+         .attr("transform", "translate("+cloud_w/2+", 260)")
+         .selectAll("text")
+         .data(words)
+         .enter().append("text")
+         .style("font-size", function(d) { return font_size_scale(d.count) + "px"; })
+         .style("fill", function(d, i) { return fill(i); })
+         .attr("text-anchor", "middle")
+         .transition().duration(750)
+         .attr("transform", function(d) {
+             return "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")";
+         })
+         .text(function(d) { return d.tag; });
+}
+
+
+/*******************************************************************
+* Sunburst
+*******************************************************************/
+
+var width = 750;
+var height = 600;
+var radius = Math.min(width, height) / 2;
+var sunX = d3.scale.linear().range([0, 2 * Math.PI]);
+var sunY = d3.scale.linear().range([0, radius]);
+
+// Breadcrumb dimensions: width, height, spacing, width of tip/tail.
+var b = {
+  w: 75, h: 30, s: 3, t: 10
+};
+
+// Mapping of step names to colors.
+var colors = {
+    "home": "#5687d1",
+    "product": "#7b615c",
+    "search": "#de783b",
+    "account": "#6ab975",
+    "other": "#a173d1",
+    "end": "#bbbbbb"
+};
+
+// Total size of all segments; we set this later, after loading the data.
+var totalSize = 0; 
+
+var vis = d3.select("#chart")
+            .append("svg:svg")
+            .attr("width", width)
+            .attr("height", height+100)
+            .append("svg:g")
+            .attr("id", "container")
+            .attr("transform", "translate(" + width / 2 + "," + (height+100) / 2 + ")");
+
+d3.select('#chart').select('svg')
+  .append('text')
+  .attr({
+      'class':'title',
+      'x': width / 2,
+      'y': 25,
+  })
+  .text('Element Branches and Categories');
+
+var partition = d3.layout.partition().value(function(d) { return d.size; });
+var arc = d3.svg.arc()
+                .startAngle(function(d) { return Math.max(0, Math.min(2 * Math.PI, sunX(d.x))); })
+                .endAngle(function(d) { return Math.max(0, Math.min(2 * Math.PI, sunX(d.x + d.dx))); })
+                .innerRadius(function(d) { return Math.max(0, sunY(d.y)); })
+                .outerRadius(function(d) { return Math.max(0, sunY(d.y + d.dy)); });
+
+
+function computeTextRotation(d) {
+    return (sunX(d.x + d.dx / 2) - Math.PI / 2) / Math.PI * 180;
+}
+
+// Main function to draw and set up the visualization, once we have the data.
+function createVisualization(json) {
+    
+    // Basic setup of page elements.
+    initializeBreadcrumbTrail();
+    
+    // Bounding circle underneath the sunburst, to make it easier to detect
+    // when the mouse leaves the parent g.
+    vis.append("svg:circle")
+       .attr("r", radius)
+       .style("opacity", 0);
+    
+    var rad = Math.min(width, height) / Math.PI - 25;
+    
+    // For efficiency, filter nodes to keep only those large enough to see.
+    var nodes = partition.nodes(json)
+                         .filter(function(d) {
+                             return (d.dx > 0.005); // 0.005 radians = 0.29 degrees
+                         });
+    
+    var g = vis.data([json]).selectAll('g')
+               .data(nodes)
+               .enter()
+               .append('g');
+    
+    var path = g.append('path')
+                .attr('class', 'sun')
+                .attr("display", function(d) {
+                    return d.depth > 0 ? null : "none";
+                })
+                .attr("d", arc)
+                .style("fill", function(d) {
+                    return d.colour;
+                })
+                .on("mouseover", mouseover);
+    
+    var text = g.append('text')
+                .attr('text-anchor', function(d) {
+                    return d.x + d.dx / 2 > Math.PI ? 'end' : 'start';
+                })
+                .attr('transform', function(d) {
+                    var angle = computeTextRotation(d);
+                    var ty = d.y < 0.65 ? 290:500;
+                    return 'rotate(' + angle + ')translate(' + (angle > 90 ? ty:10) + ')rotate(' + (angle > 90 ? -180:0) + ')';
+                })
+                .style('fill', function(d) {
+                    return luminosity(d3.rgb(d.colour)) < 125 ? '#eee' : '#444';
+                })
+                .attr('x', function(d) { return sunY(d.y); })
+                .attr('dx', '6') // margin
+                .attr('dy', '.35em') // vertical-align
+                .attr('display', function(d) { return d.depth ? null:'none'; })
+                .text(function(d) { return d.name; });
+                
+    //g.selectAll('.label').call(textwrap, 100);
+    
+    // Add the mouseleave handler to the bounding circle
+    d3.select("#container").on("mouseleave", mouseleave);
+    
+    // Get total size of the tree = value of root node from partition
+    totalSize = path.node().__data__.value;
+};
+
+// Text label wrap
+function textwrap(text, width) {
+    text.each(function() {
+        var text = d3.select(this);
+        var words = text.text().split(/\s+/).reverse();
+        var word;
+        var line = [];
+        var lineNumber = 0;
+        var lineHeight = 1.1; // ems
+        var y = text.attr("y");
+        var dy = parseFloat(text.attr("dy"));
+        var tspan = text.text(null).append("tspan").attr("x", 0).attr("y", y).attr("dy", dy + "em");
+        while (word = words.pop()) {
+            line.push(word);
+            tspan.text(line.join(" "));
+            if (tspan.node().getComputedTextLength() > width) {
+                line.pop();
+                tspan.text(line.join(" "));
+                line = [word];
+                tspan = text.append("tspan").attr("x", 0).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+            }
+        }
+    });
+}
+
+// Fade all but the current sequence, and show it in the breadcrumb trail.
+function mouseover(d) {
+    var explainText = d.value;
+    var description = ' elements ';
+    if (d.depth === 1) {
+        description += ' in branch';
+    } else {
+        description += ' in category';
+    }
+    
+    d3.select("#percentage")
+      .text(explainText);
+    
+    d3.select("#description")
+      .text(description);
+    
+    d3.select("#explanation")
+      .style("visibility", "");
+    
+    var sequenceArray = getAncestors(d);
+    updateBreadcrumbs(sequenceArray, explainText+' elements');
+    
+    // Fade all the segments.
+    d3.selectAll(".sun")
+      .style("opacity", 0.3);
+    
+    // Then highlight only those that are an ancestor of the current segment.
+    vis.selectAll(".sun")
+       .filter(function(node) {
+           return (sequenceArray.indexOf(node) >= 0);
+       })
+       .style("opacity", 1);
+}
+
+// Restore everything to full opacity when moving off the visualization.
+function mouseleave(d) {
+    // Hide the breadcrumb trail
+    d3.select("#trail").style("visibility", "hidden");
+    
+    // Deactivate all segments during transition.
+    d3.selectAll(".sun").on("mouseover", null);
+    
+    // Transition each segment to full opacity and then reactivate it.
+    d3.selectAll(".sun")
+      .transition()
+      .duration(100)
+      .style("opacity", 1)
+      .each("end", function() {
+              d3.select(this).on("mouseover", mouseover);
+      });
+
+    d3.select("#explanation")
+      .style("visibility", "hidden");
+}
+
+// Given a node in a partition layout, return an array of all of its ancestor
+// nodes, highest first, but excluding the root.
+function getAncestors(node) {
+    var path = [];
+    var current = node;
+    while (current.parent) {
+      path.unshift(current);
+      current = current.parent;
+    }
+    return path;
+}
+
+function initializeBreadcrumbTrail() {
+    // Add the svg area.
+    var trail = d3.select("#sequence").append("svg:svg")
+        .attr("width", width)
+        .attr("height", 50)
+        .attr("id", "trail");
+    // Add the label at the end, for the percentage.
+    trail.append("svg:text").attr("id", "endlabel");
+}
+
+// Generate a string that describes the points of a breadcrumb polygon.
+function breadcrumbPoints(d, i) {
+    //console.log(d.name+':'+d.name.length+' ');
+    var points = [];
+    
+    var w = b.w;
+    if (d.name.length > 8) {
+        var n = d.name.length - 8;
+        w = b.w + (n*8);
+    }
+    
+    points.push("0,0"); // top left
+    points.push(w + ",0"); // top right
+    points.push(w + b.t + "," + (b.h / 2)); // arrow point right
+    points.push(w + "," + b.h); // bottom right
+    points.push("0," + b.h); // bottom left
+    if (i > 0) { // Leftmost breadcrumb; don't include 6th vertex.
+        points.push(b.t + "," + (b.h / 2));
+    }
+    return points.join(" ");
+}
+
+// Update the breadcrumb trail to show the current sequence and percentage.
+function updateBreadcrumbs(nodeArray, textvalue) {
+
+    // Data join; key function combines name and depth (= position in sequence).
+    var g = d3.select("#trail")
+        .selectAll("g")
+        .data(nodeArray, function(d) { return d.name + d.depth; });
+    
+    // determine breadcrumb width
+    var blen = [0];
+    for (node in nodeArray) {
+        var d = nodeArray[node];
+        if (d.name.length > 8) {
+            blen.push(b.w + ((d.name.length-8) *8));
+        } else {
+            blen.push(b.w);
+        }
+    }
+    var blen_total = blen.reduce(function(pv,cv) { return pv+cv; }, 0);
+    
+    // Add breadcrumb and label for entering nodes.
+    var entering = g.enter()
+                    .append("svg:g");
+    
+    entering.append("svg:polygon")
+        .attr("points", breadcrumbPoints)
+        .style("fill", function(d) { return d.colour; });
+    
+    entering.append("svg:text")
+        //.attr("x", (b.w + b.t) / 2)
+        .attr("x", function(d,i) {
+            if (d.name.length > 8) {
+                var n = d.name.length - 8;
+                return ((b.w + (n*8)) + b.t) / 2;
+            } else {
+                return (b.w + b.t) / 2;
+            }
+        })
+        .attr("y", b.h / 2)
+        .attr("dy", "0.35em")
+        .attr("text-anchor", "middle")
+        .style('fill', function(d) {
+            return luminosity(d3.rgb(d.colour)) < 125 ? '#eee' : '#444';
+        })
+        .text(function(d) { return d.name; });
+    
+    // Set position for entering and updating nodes.
+    g.attr("transform", function(d, i) {
+        return "translate(" + i * (blen[i] + b.s) + ", 0)";
+    });
+    
+    // Remove exiting nodes.
+    g.exit().remove();
+    
+    // Now move and update the percentage at the end.
+    d3.select("#trail").select("#endlabel")
+        .attr("x", (blen_total + b.s) + 20)
+        .attr("y", b.h / 2)
+        .attr("dy", "0.35em")
+        .attr("text-anchor", "middle")
+        .text(textvalue);
+    
+    // Make the breadcrumb trail visible, if it's hidden.
+    d3.select("#trail").style("visibility", "");
+}
+
+
+// Take a 2-column CSV and transform it into a hierarchical structure suitable
+// for a partition layout. The first column is a sequence of step names, from
+// root to leaf, separated by hyphens. The second column is a count of how 
+// often that sequence occurred.
+
+function buildHierarchy(csv) {
+    var derivatives = [-.1, -.05, 0];
+    var root = {"name": "root", "children": []};
+    for (var i = 0; i < csv.length; i++) {
+        var colour = '#' + csv[i][0];
+        var sequence = csv[i][1];
+        var size = +csv[i][2];
+        if (isNaN(size)) { // e.g. if this is a header row
+            continue;
+        }
+        var parts = sequence.split("-");
+        var currentNode = root;
+        for (var j = 0; j < parts.length; j++) {
+            var children = currentNode["children"];
+            var nodeName = parts[j];
+            var childNode;
+            
+            var depth = j + 1;
+            var f = derivatives[j];
+            
+            if (j + 1 < parts.length) {
+                // Not yet at the end of the sequence; move down the tree.
+                var branchColour = d3.rgb(colour).darker(.3 * depth + f * depth).toString();
+                var foundChild = false;
+                for (var k = 0; k < children.length; k++) {
+                    if (children[k]["name"] == nodeName) {
+                      childNode = children[k];
+                      foundChild = true;
+                      break;
+                    }
+                }
+                // If we don't already have a child node for this branch, create it.
+                if (!foundChild) {
+                    childNode = {"name": nodeName, "children": [], "colour": branchColour};
+                    children.push(childNode);
+                }
+                currentNode = childNode;
+            } else {
+              // Reached the end of the sequence; create a leaf node.
+              // lighten colour
+                childNode = {"name": nodeName, "size": size, "colour": colour};
+              children.push(childNode);
+            }
+        }
+    }
+    return root;
+};
+
+$(document).ready(function() {
+    var branch_cat_data = {{=XML(branch_cat_data)}};
+    var json = buildHierarchy(branch_cat_data);
+    createVisualization(json);
+
+});
+</script>

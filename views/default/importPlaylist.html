@@ -1,0 +1,28 @@
+{{extend 'layout_bootstrap3.html'}}
+{{include 'common.html'}}
+{{
+import os
+xelements_css = '%sstatic/%s' % (request.folder, 'css/xelements.css')
+xelements_mtime = str(int(os.path.getmtime(xelements_css)))
+detail_css = '%sstatic/%s' % (request.folder, 'css/detail.css')
+detail_mtime = str(int(os.path.getmtime(detail_css)))
+}}
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/xelements.css')}}?{{=xelements_mtime}}" />
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/detail.css')}}?{{=detail_mtime}}" />
+
+<style>
+div.error {
+    background: none;
+    color: #a00;
+    border: none;
+}
+</style>
+<!-- 
+<div class="container-fluid">
+  <div class="row">
+    {{=form}}
+  </div>
+</div>
+ -->
+<script>
+</script>

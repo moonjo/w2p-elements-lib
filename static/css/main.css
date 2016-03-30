@@ -1,0 +1,99 @@
+#panel-btns {
+    margin-left: 10px;
+}
+#filter-tree {
+    margin-top: 10px;
+}
+
+.left-panel {
+    padding-left: 0;
+}
+
+.ui-fancytree {
+    background-color: #bbb;
+    border: none !important;
+    outline: none;
+}
+
+
+.user-panel {
+    position: fixed;
+    right: 0;
+    margin-right: 6%;
+}
+
+/* filter pane */
+.filter-result-div > div {
+    padding-left: 10px;
+    padding-right: 10px;
+    font-size: 13px;
+    font-weight: bold;
+}
+.filter-result-div > div:first-child {
+    padding-bottom: 4px;
+    color: 
+}
+.filter-result-div > div:last-child {
+    padding-top: 4px;
+}
+#filter-result-num {
+    display: inline-block;
+    vertical-align: -4px;
+}
+
+#new-search {
+    width: 100% !important;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+.btn-none {
+    width: 100% !important;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+.btn-none:hover {
+    background-color: #ccc;
+}
+.filter-method-div {
+    //border-bottom: 1px solid #aaa;
+}
+.filter-table {
+    margin-bottom: 10px;
+    background-color: #eee;
+    border: 1px solid #aaa;
+    border-radius: 3px;
+}
+.filter-row-header {
+    margin: 0 0 4px 0;
+    padding: 4px 12px;
+    font-weight: bold;
+    background-color: #bbb;
+    border-bottom: 1px solid #aaa;
+}
+.filter-row-tag {
+    font-size: 13px;
+    padding: 2px 10px;
+    border-bottom: 1px dashed #aaa;
+}
+
+.filter-row-tag:hover {
+    background-color: #E4E4E4;
+}
+.filter-row-tag:last-child {
+    padding-bottom: 4px;
+    border-bottom: none;
+}
+.filter-row-tag label {
+    width: 100%;
+    cursor: pointer;
+}
+.filter-row-tag input {
+    margin-right: 6px;
+    vertical-align: -2px;
+}
+#current-filters {
+    min-height: 35px;
+    padding-top: 4px;
+    padding-bottom:10px;
+}
+

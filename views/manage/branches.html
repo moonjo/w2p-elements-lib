@@ -1,0 +1,359 @@
+{{extend 'layout_bootstrap3.html'}}
+{{include 'common.html'}}
+{{include 'common_manage.html'}}
+
+{{
+import os
+xelements_css = '%sstatic/%s' % (request.folder, 'css/xelements.css')
+xelements_mtime = str(int(os.path.getmtime(xelements_css)))
+manage_css = '%sstatic/%s' % (request.folder, 'css/manage.css')
+manage_mtime = str(int(os.path.getmtime(manage_css)))
+}}
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/xelements.css')}}?{{=xelements_mtime}}" />
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/manage.css')}}?{{=manage_mtime}}" />
+
+<style>
+h3 {
+    margin-bottom: 20px;
+}
+thead, tfoot {
+    background-color: #fff;
+}
+table a, table a:visited, table a:link, table a:active {
+    text-decoration: none;
+}
+th, td {
+    border-right-width: 0 !important;
+}
+
+.dataTable {
+    width: 100% !important;
+}
+td.centered {
+    text-align: center;
+}
+td.righted {
+    text-align: right;
+}
+
+.page {
+    margin: 30px 0;
+}
+
+tr:hover .row-menu {
+    visibility: visible;
+}
+.row-menu {
+    color: #ddd;
+    font-size: 13px;
+    visibility: hidden;
+    padding: 2px 0 0;
+}
+.texted-icon {
+    min-width: 30px;
+}
+.icon-text {
+    color: #eee;
+    font-weight: bold;
+}
+.text-label {
+    color: #666;
+    font-weight: bold;
+}
+
+.fullname {
+    margin-bottom: 10px;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+/* form */
+.form-div {
+    padding-top: 10px;
+    min-width: 763px;
+}
+.form-body {
+    margin-right: 300px;
+    padding: 0;
+}
+
+.fail {
+    background: #c00;
+    padding: 2px;
+    color: #fff;
+}
+.inside > select {
+    margin-bottom: 10px;
+}
+
+.tag-link {
+    margin-right: 5px;
+}
+
+.btn-group > .btn:not(:first-child) {
+    border-left: 0;
+}
+#popup-window > .modal-dialog {
+    top: 200px;
+}
+
+</style>
+
+<div class="container-fluid">
+  <div id="admin-menu-back"></div>
+  <div id="admin-menu-div">
+    {{=menu}}
+  </div>
+  
+  <div id="admin-body">
+    <div id="home" class="page" style="display:none;">
+      <h3>Branches</h3>
+      <small class="help-block">Deleting a Branch assigns its child Categories to default Branch: <strong>"Unspecified"</strong></small>
+      <div style="width:50%;">
+        <div class="form-group">
+          <input id="new-name" class="form-control" type="text" placeholder="new branch name">
+        </div>
+        <div class="form-group">
+          <button id="branch-create" class="btn btn-primary">Add New Branch</button>
+        </div>
+      </div>
+      
+      <div>
+      {{=table}}
+      </div>
+      
+    </div>
+  </div>
+  
+</div>
+
+<div id="popup-window" class="modal fade">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-body">
+        <p id="popup-message"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+      </div>
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+<script>
+
+$(document).ready(function() {
+    
+    var table = $('#branches-table').DataTable({
+        'searchDelay': 300,
+        'order': [[1,'asc']],
+        'columns': [
+            {'data':'checkbox'},
+            {'data':'branch_name'},
+            {'data':'count'},
+            {'data':'branch_id'},
+        ],
+        'columnDefs': [
+            {
+                 'targets': 0,
+                 'name': 'checkbox',
+                 'orderable': false,
+                 'searchable': false,
+                 'width': '1px',
+                 'className': 'center',
+                 'render': function(data, type, row) {
+                     if (row['DT_RowId'] === {{=defaultid}}) {
+                         return '<input class="default" type="checkbox" disabled>';
+                     }
+                     return data;
+                 }
+              },
+            {
+                'targets': 1,
+                'name': 'xelements_branch.name',
+                'orderable': true,
+                'searchable': true,
+                'render': function(data, type, row) {
+                    // if default branch, skip - cannot be edited, deleted
+                    var branch_id = row['DT_RowId'];
+                    if (data !== '{{=defaultval}}') {
+                        //var d = row.join('|');
+                        var d= row['branch_name'] + '|' + row['branch_id'];
+                        var row_menu = '{{=rowmenu}}'.replace(/TARGETID/g, branch_id).replace(/TARGETDATA/, d);
+                        return data + row_menu;
+                    } else {
+                        var row_menu = '{{=rowmenudefault}}'.replace(/TARGETID/g, branch_id);
+                        return data + row_menu;
+                    }
+                }
+             }, // name
+            {
+                'targets': 2,
+                'name': 'COUNT(xelements_category.id)',
+                'orderable': true,
+                'searchable': false,
+                'width': '30%',
+                'className': 'digit',
+            }, // count
+            {'targets': 3, 'name': 'xelements_branch.id', 'orderable': false, 'searchable': false, 'visible': false}, // branch ID
+        ],
+        'rowCallback': function(row, data, index) {
+            //var d = data.join('|');
+            //$(row).attr('data-origdata', d);
+        },
+        'processing': true,
+        'serverSide': true,
+        'ajax': '{{=URL("branchesTable")}}',
+        'drawCallback': function(settings) {
+            menuResize();
+            bulkMenu('branch');
+            $('#check-all-rows').prop('checked', false);
+        },
+    });
+    
+    // apply bulk action to selected rows
+    $(document).on('click', '#bulk-apply', function() {
+        var cells = table.cells().nodes();
+        var selected = [];
+        $(cells).find(':checked').each(function() {
+            selected.push($(this).closest('tr').attr('id'));
+        });
+        
+        var action = $('#bulk-action').val();
+        if (selected.length && action !== '') {
+            console.log(action + ' ' + selected.join(','));
+        }
+        
+    });
+    
+    // row checkbox
+    $(document).on('change', '#check-all-rows', function() {
+        var checked = $(this).is(':checked');
+        var cells = table.cells().nodes();
+        $(cells).find(':checkbox').each(function(idx) {
+            if (!$(this).hasClass('default')) {
+                $(this).prop('checked', checked);
+            }
+        });
+        rows_all_selected = checked;
+    });
+    
+    // Delete callback
+    $(document).on('click', '.delete-item', function(e) {
+        e.preventDefault();
+        var item_id = this.href.split('#')[1];
+        var name = $(this).closest('td').clone().children().remove().end().text();
+        
+        var $tr = $(this).closest('tr');
+        
+        if (confirm("Delete " + name + "?")) {
+            $.ajax({
+                url: '{{=URL("manage", "deleteBranch")}}',
+                data: {branchid: item_id}
+            })
+            .done(function(data) {
+                table.rows($(this).closest('tr')).remove().draw(false);
+            });
+        }
+    });
+    
+    $(document).on('click', '#add-new-btn', function() {
+        $('#elements-new').trigger('click');
+    });
+    
+    
+    // update inline edit
+    $(document).on('click', '.inline-edit-update', function() {
+        
+        var good = true;
+        var bid = $(this).data('targetid');
+        var name = $('.inline-edit-branch-name').val();
+        
+        if (name.length < 2) {
+            good = false;
+            $('.inline-edit-branch-name').parent().addClass('has-error');
+        } else {
+            $('.inline-edit-branch-name').parent().removeClass('has-error');
+        }
+        
+        if (good) {
+            $.ajax({
+                url: '{{=URL("manage", "createUpdateBranch")}}',
+                data: {
+                    branchid: bid,
+                    name: name,
+                }
+            })
+            .done(function(data) {
+                table.draw();
+            });
+        }
+    });
+    
+    // cancel inline edit
+    $(document).on('click', '.inline-edit-cancel', function(e) {
+        e.preventDefault();
+        $(this).closest('tr').prev().show().end().remove();
+    });
+    
+    // Edit callback
+    $(document).on('click', '.row-edit > a', function(e) {
+        e.preventDefault();
+        
+        // destroy other open inline edit rows
+        $('#branches-table .inline-edit-row').remove();
+        $('#branches-table tr').show();
+        
+        var edit_row = '{{=editinline}}';
+        var $row = $(this).closest('tr');
+        
+        $row.after(edit_row).hide();
+        
+        // load Element data to form
+        var bdata = $(this).data('branchdata').split('|'); // name|branchid
+        var branch_name = bdata[0];
+        var branch_id = bdata[1];
+        
+        $('.inline-edit-branch-name').val(branch_name);
+        $('.inline-edit-update').attr('data-targetid', branch_id);
+    });
+    
+    
+    // new form submit
+    $(document).on('click', '#branch-create', function(e) {
+        e.preventDefault();
+        var good = true;
+        var newname = $('#new-name').val();
+        if (newname === '') {
+            $('#new-name').parent().addClass('has-error');
+            good = false;
+        } else {
+            $('#new-name').parent().removeClass('has-error');
+        }
+        
+        if (good) {
+            $.ajax({
+                url: '{{=URL("createUpdateBranch")}}',
+                data: {
+                    name: newname,
+                }
+            })
+            .done(function(data) {
+                if (data !== '') {
+                    if (data.error) {
+                        alert(data.msg);
+                    } else {
+                        $('#new-name').val('');
+                        table.draw();
+                    }
+                }
+            });
+        }
+    });
+    
+    
+    // init
+    
+    
+});
+</script>

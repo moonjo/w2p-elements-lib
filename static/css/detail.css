@@ -1,0 +1,240 @@
+
+#size-toggle-menu {
+    display: none;
+}
+
+#address {
+    font-weight: bold;
+}
+.addressbar {
+    padding: 8px 15px 8px 0;
+    margin-bottom: 10px;
+}
+.addressbar a {
+    text-decoration: none;
+}
+.address-delimiter {
+    margin: 0 10px;
+}
+
+.panel-filter, .panel-filter-clear {
+    background-color: #eee;
+}
+
+#tree-search * {
+    border-color: #E7E7E7;
+}
+
+.element-details {
+    background-clip: padding-box;
+    overflow: hidden;
+    border-left: 1px solid #b8babc;
+    border-right: 1px solid #b8babc;
+    -webkit-border-radius: 3px;
+    -moz-border-radius: 3px;
+    border-radius: 3px;
+}
+.element-header {
+    width: 100%;
+    background: #b8babc;
+    padding: 1% 0;
+    font-weight: bold;
+    color: #222;
+}
+.element-title {
+    display: inline-block;
+    font-weight: 700;
+    font-size: 15px;
+    padding: 0;
+    margin: 0;
+    line-height: normal;
+    text-indent: 10px;
+}
+#detail-sidebar {
+    padding: 0;
+}
+.detail-row {
+    background-color: #f5f5f5;
+    width: 100%;
+    float: left;
+    clear: left;
+    font-size: 12px;
+    line-height: 20px;
+    border-top: none;
+    border-bottom: 1px solid #ced0d3;
+}
+.path-panel > .detail-row {
+    border-left: 1px solid #ced0d3;
+    border-right: 1px solid #ced0d3;
+}
+
+.detail-row span {
+    text-indent: 1%;
+    word-wrap: break-word;
+}
+.detail-label {
+    padding: 3px 3px 3px 5px;
+    font-weight: bold;
+    float: left;
+    width: 33%;
+    border-right: 1px solid #ced0d3;
+}
+.detail-info {
+    display: inline-block;
+    padding: 3px 3px 3px 5px;
+    width: 60%;
+}
+.detail-info-full {
+    padding: 0 1.4%;
+}
+.video-detail-label {
+    padding: 3px 3px 3px 5px;
+    font-weight: bold;
+    float: left;
+    width: 106px;
+    text-indent: 4px !important;
+}
+.video-detail-info {
+    display: inline-block;
+    padding: 3px 3px 3px 5px;
+    width: auto; //50%;
+    border-left: 1px solid #ced0d3;
+    line-height: 2.3;
+}
+
+.detail-tech-header {
+    width: 100%;
+    float: left;
+    background: #ddd;
+    border-left: none;
+    border-right: none;
+}
+.detail-tech-label {
+    width: 33%;
+    float: left;
+    text-align: center;
+    font-size: 8.5pt;
+    font-weight: bold;
+    color: #888;
+}
+
+.detail-tech-info {
+    width: 33%;
+    float: left;
+    text-align: center;
+    font-size: 8.5pt;
+    padding: 4px 0;
+}
+.detail-tech-row {
+    width: 100%;
+    float: left;
+    background-color: #f5f5f5;
+    border-left: none;
+    border-right: none;
+    border-bottom: 1px solid #b8babc;
+    -webkit-bottom-left-border-radius: 3px;
+    -webkit-bottom-right-border-radius: 3px;
+    -moz-bottom-left-border-radius: 3px;
+    -moz-bottom-right-border-radius: 3px;
+    border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+.detail-tech-info.middle {
+    border-left: 1px solid #b8babc;
+    border-right: 1px solid #b8babc;
+}
+#detail-footer {
+    padding-left: 0;
+    height: 0;
+    clear:both;
+}
+.comments-section {
+    height: 0;
+}
+
+/* VIDEO */
+#video-ctrl-wrapper {
+    margin: 0 auto;
+}
+.video-wrapper {
+    padding-top: 15px;
+    padding-bottom: 10px;
+    text-align: center;
+    background-color: #222;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+}
+.video-btn {
+    margin-right: 10px;
+    cursor: pointer;
+}
+.video-btn:hover {
+    color: #ddd;
+}
+#video-controls {
+    margin-top: 10px;
+}
+#video-controls-top:after {
+    content: " ";
+    display: block;
+    height: 0;
+    clear: both;
+}
+#video-controls-top > div {
+    padding: 0;
+}
+#video-seekbar {
+    display: inline-block;
+    vertical-align: -6px;
+    margin-right: 5px;
+}
+#video-time {
+    display: inline-block;
+    width: 20px;
+}
+#video-settings {
+    margin-top: 15px;
+    margin-right: 3%;
+}
+#video-settings label {
+    font-size: 0.9em;
+    color: #888;
+}
+.video-ctrl-left {
+    display: inline-block;
+    width: 70px;
+    float: left;
+}
+.video-ctrl-center {
+    display: inline-block;
+    width: 56%;
+}
+.video-ctrl-right {
+    display: inline-block;
+    width: 80px;
+    float: right;
+}
+
+.video-detail-info.text-overflow {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (min-width: 992px) {
+    .video-detail-info.text-overflow {
+        width: 67%;
+    }
+}
+
+@media (min-width: 1200px) {
+    .video-detail-info.text-overflow {
+        width: 77%;
+    }
+}
+
+@media (min-width: 1408px) {
+    .video-detail-info.text-overflow {
+        width: 87%;
+    }
+}

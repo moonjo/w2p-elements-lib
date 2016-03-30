@@ -1,0 +1,979 @@
+
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/bootstrap-tagsinput.css')}}" />
+
+<style>
+.bs-modal {
+    top: 100px;
+}
+#hint {
+    display: block;
+    height: 1em;
+    padding: 0 16px;
+    color: #a00;
+}
+
+.twitter-typeahead .tt-query,
+.twitter-typeahead .tt-hint {
+  margin-bottom: 0;
+}
+.twitter-typeahead .tt-hint {
+    display: none;
+}
+.tt-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1000;
+    display: none;
+    float: left;
+    min-width: 160px;
+    padding: 5px 0;
+    margin: 2px 0 0;
+    list-style: none;
+    font-size: 14px;
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+    -webkit-box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
+    background-clip: padding-box;
+}
+.tt-suggestion > p {
+    display: block;
+    padding: 3px 20px;
+    clear: both;
+    font-weight: normal;
+    line-height: 1.428571429;
+    color: #333333;
+    white-space: nowrap;
+}
+.tt-suggestion > p:hover,
+.tt-suggestion > p:focus,
+.tt-suggestion.tt-cursor p {
+    color: #ffffff;
+    text-decoration: none;
+    outline: 0;
+    background-color: #428bca;
+}
+.bootstrap-tagsinput {
+    width: 100%;
+}
+
+.modal-padleft {
+    padding-left: 15px;
+}
+
+#share-msg {
+    resize: vertical;
+}
+
+.context-menu {
+    display: none;
+    position: absolute;
+    background: #eee;
+    border: 1px #ccc solid;
+    z-index: 10;
+}
+.context-menu-active {
+    display: block;
+}
+.context-menu-items {
+    margin: 0;
+    padding: 5px 10px;
+    
+}
+.context-menu-items a {
+    text-decoration: none;
+}
+
+</style>
+
+<div id="msg-dlg" class="modal fade bs-modal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-dialog">
+    <div class="modal-content">
+      <div id="msg-dlg-body" class="modal-body"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="share-dlg" class="modal fade bs-modal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <i class="fa fa-share-alt"></i><strong> SHARE a PLAYLIST</strong>
+      </div>
+      <div id="share-dlg-body" class="modal-body">
+        <div id="share-url" class="modal-padleft"></div>
+        <br>
+        <div class="col-lg-12">
+          <input id="username-autocomplete" class="form-control" placeholder="user names">
+        </div>
+        <br>
+        <p>
+        <span id="hint"></span>
+        </p>
+        <div class="col-lg-12">
+          <textarea id="share-msg" class="form-control" placeholder="message" rows=3></textarea>
+        </div>
+        <span class="clearfix"></span>
+        <h4 id="share-name" class="modal-padleft"></h4>
+        <ul id="share-elements"></ul>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" data-dismiss="modal">Close</button>
+        <button id="share" class="btn btn-primary">Share</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="playlist-dlg" class="modal fade bs-modal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div id="playlist-dlg-body" class="modal-body">Discard unsaved Playlist changes?</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">No</button>
+        <button type="button" class="btn btn-default prompt-accept">Yes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<nav id="context-menu" class="context-menu">
+  <ul class="context-menu-items">
+    <li class="context-menu-item">
+      <a href="#" class="context-menu-link">
+        <i class="fa fa-edit"></i> Rename Playlist
+      </a>
+    </li>
+  </ul>
+</nav>
+
+<!-- Common functions -->
+<script src="{{=URL('static','js/jquery.lazyload.min.js')}}" type="text/javascript"></script>
+<script src="{{=URL('static','js/jquery.hoverIntent.js')}}" type="text/javascript"></script>
+<script src="{{=URL('static','js/ZeroClipboard.min.js')}}" type="text/javascript"></script>
+
+<script src="{{=URL('static','js/typeahead.bundle.js')}}" type="text/javascript"></script>
+<script src="{{=URL('static','js/bootstrap-tagsinput.js')}}" type="text/javascript"></script>
+<!-- 
+<script src="{{=URL('static','js/jquery-scrollto.js')}}" type="text/javascript"></script>
+<script src="{{=URL('static','js/jquery.history.js')}}" type="text/javascript"></script>
+<script src="{{=URL('static','js/ajaxify-html5.js')}}" type="text/javascript"></script>
+ -->
+<script src="{{=URL('static','js/xelements.js')}}" type="text/javascript"></script>
+
+<script>
+
+var loading_overlay = '<div id="lov" class="loading-overlay"><div><i class="fa fa-spin fa-refresh fa-4x text-info"></i></div></div>';
+var loading_icon = '<span class="fa fa-spin fa-refresh"></span>';
+var loading_icon_big = '<span class="fa fa-spin fa-refresh fa-5x"></span>';
+//var processing_overlay = '<div id="pov" class="processing-overlay"><div><i class="fa fa-spin fa-refresh fa-4x text-info"></i></div></div>';
+var processing_overlay = '<div id="pov" class="processing-overlay"><div class="progress"><div class="progress-bar progress-bar-striped active" style="width:100%;" role="progressbar"><span>Processing...</span></div></div></div>';
+
+//document.getElementById('username-autocomplete');
+
+var cmenu_active = 'context-menu-active';
+
+var itemincontext;
+
+var clickCoords;
+var clickCoordsX;
+var clickCoordsY;
+
+var cmenu = document.querySelector('#context-menu');
+var cmenu_items = cmenu.querySelectorAll('.context-menu-item');
+var cmenu_state = 0;
+var menuWidth;
+var menuHeight;
+var menuPosition;
+var menuPositionX;
+var menuPositionY;
+
+var windowWidth;
+var windowHeight;
+
+function clickInsideElement(e, classname) {
+    var el = e.srcElement || e.target;
+    if (el.classList.contains(classname)) {
+        return el;
+    } else {
+        while (el = el.parentNode) {
+            if (el.classList && el.classList.contains(classname)) {
+                return el;
+            }
+        }
+    }
+    return false;
+}
+function toggleMenuOff() {
+    if (cmenu_state !== 0) {
+        cmenu_state = 0;
+        cmenu.classList.remove(cmenu_active);
+    }
+}
+function toggleMenuOn() {
+    if (cmenu_state !== 1) {
+        cmenu_state = 1;
+        cmenu.classList.add(cmenu_active);
+    }
+}
+function positionMenu(e) {
+    clickCoords = getPosition(e);
+    clickCoordsX = clickCoords.x;
+    clickCoordsY = clickCoords.y;
+    
+    menuWidth = cmenu.offsetWidth + 4;
+    menuHeight = cmenu.offsetHeight + 4;
+    
+    windowWidth = window.innerWidth;
+    windowHeight = window.innerHeight;
+    
+    if ((windowWidth - clickCoordsX) < menuWidth) {
+        cmenu.style.left = windowWidth - menuWidth + 'px';
+    } else {
+        cmenu.style.left = clickCoordsX -140 + 'px';
+    }
+    
+    if ((windowHeight - clickCoordsY) < menuHeight) {
+        cmenu.style.top = windowHeight - menuHeight + 'px';
+    } else {
+        cmenu.style.top = clickCoordsY - 80 + 'px';
+    }
+}
+function getPositionA(e) {
+    var parentPosition = getPositionA(e.target);
+    var xPos = e.clientX - parentPosition.x;
+    var yPos = e.clientY - parentPosition.y;
+    return {x:xPos,y:yPos};
+}
+function getPositionB(element) {
+    var xPosition = 0;
+    var yPosition = 0;
+    while (element) {
+        xPosition += (element.offsetLeft - element.scrollLeft + element.clientLeft);
+        yPosition += (element.offsetTop - element.scrollTop + element.clientTop);
+        element = element.offsetParent;
+    }
+    return { x: xPosition, y: yPosition };
+}
+function getPosition(e) {
+    var posx = 0;
+    var posy = 0;
+    if (!e) var e = window.event;
+    if (e.pageX || e.pageY) {
+        posx = e.pageX;
+        posy = e.pageY;
+    } else if (e.clientX || e.clientY) {
+        posx = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
+        posy = e.clientY + document.body.scrollTop + document.documentElement.scrollTop;
+    }
+    return {x:posx, y:posy}
+}
+function contextListener() {
+    document.addEventListener('contextmenu', function(e) {
+        itemincontext = clickInsideElement(e, 'playlist-panel');
+        var faveslist = document.querySelector('#tab-playlist-faves');
+        if (itemincontext && !faveslist.classList.contains('active')) {
+            e.preventDefault();
+            toggleMenuOn();
+            positionMenu(e);
+        } else {
+            itemincontext = null;
+            toggleMenuOff();
+        }
+    });
+}
+function clickListener() {
+    document.addEventListener('click', function(e) {
+        var clickelislink = clickInsideElement(e, 'context-menu-link');
+        if (clickelislink) {
+            e.preventDefault();
+            menuItemListener(clickelislink);
+        } else {
+            var button = e.which || e.button;
+            if (button === 1) {
+                toggleMenuOff();
+            }
+        }
+    });
+}
+function menuItemListener(link) {
+    toggleMenuOff();
+    var playlist_select = document.getElementById('playlist-select');
+    var selected = playlist_select.options.selectedIndex;
+    var selected_text = playlist_select.options[selected].text;
+    var newname = prompt('Enter a new name for playlist "'+selected_text+'"');
+    var playlistid = playlist_select.options[selected].attributes['data-playlistid'].value;
+    
+    if (playlistid && newname) {
+        var formdata = 'pid='+playlistid+'&name='+newname;
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '{{=URL("ajaxcalls", "renamePlaylist")}}', true);
+        xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+        xhr.onreadystatechange = function() {
+            if (xhr.status == 200) {
+                //success
+                playlist_select.options[selected].text = newname;
+            }
+        };
+        xhr.send(formdata);
+    }
+}
+
+function initListeners() {
+    contextListener();
+    clickListener();
+}
+initListeners();
+
+
+function panelResize() {
+    var bodyheight = $(window).height();
+    $('.ul-pane').height(bodyheight-235);
+}
+
+function panelScroll() {
+    var top = '';
+    if (window.scrollY > 60) {
+        top = '60px';
+    }
+    $('.user-panel').css('top', top);
+}
+
+window.onresize = function() {
+    panelResize();
+    toggleMenuOff();
+};
+
+window.onscroll = function() {
+    panelScroll();
+}
+
+
+function previewInit(target) {
+    $(target).hoverIntent(showPreview, hidePreview);
+}
+
+function showPreview() {
+    var $data = $(this); // div
+    
+    var $li = $data.parent().parent(); // li
+    var offset_right = -410;
+    var offset_left;
+    
+    if ($li.hasClass('small')) {
+        offset_left = 145;
+    } else {
+        offset_left = 255;
+    }
+    
+    var resolution = $data.data('resolution');
+    if (typeof resolution === 'undefined') {
+        resolution = 'Res:unknown';
+    } else {
+        resolution = resolution.toLowerCase().replace('resolution-', 'Res:');
+    }
+    
+    var cutlength = $data.data('length');
+    if (typeof cutlength === 'undefined') {
+        cutlength = 'Length:unknown';
+    } else {
+        cutlength = 'Length:' + cutlength;
+    }
+    
+    var element_name = $li.find('.grid-name').text();
+    var video_url = $data.data('video');
+    if (/novideo/.test(video_url)) {
+        var video_loading_gif = '{{=URL("static","/images/novideo.jpg")}}';
+    } else {
+        //var video_loading_gif = '{{=URL("static","/images/loading_preview.gif")}}';
+        var video_loading_gif = $li.find('img').attr('src');
+    }
+    
+    var template = '';
+    {{if 'previewtemplate' in globals():}}
+    template = '{{=XML(previewtemplate)}}'.format(video_loading_gif, video_url, element_name, cutlength, resolution);
+    {{pass}}
+    
+    var fade_speed = 10;
+    if ($data.hasClass('grid-thumbnail')) {
+        $li.find('.preview-holder').empty().append(template);
+        
+        var pos = $li.position();
+        var screen_width = $(window).width();
+        
+        if (screen_width-pos.left > 1140) {
+            var x = offset_left; // show on left
+        } else {
+            var x = offset_right; // show on right
+        }
+        $('#preview-popup').css({top:pos.top-40, left:pos.left+x}).stop().fadeTo(fade_speed,1);
+    } else {
+        var pos = $li.offset();
+        var top_offset = parseInt(140);
+        var left_offset = parseInt(500 + ((pos.left-800)/10.0));
+        
+        $('#playlist-preview').empty().append(template);
+        $('#preview-popup').css({top:pos.top-top_offset, left:pos.left-left_offset}).stop().fadeTo(fade_speed,1);
+    }
+    //$('.movie-player')[0].play();
+    // delay play video
+    setTimeout(function() {
+        var mp = document.getElementsByClassName('movie-player');
+        if (mp.length) {
+            mp[0].play();
+        }
+    },500);
+    
+}
+function hidePreview() {
+    $('#preview-popup').parent().empty();
+}
+$(document).on('mouseenter', '#preview-popup', function(e) {
+    $(this).parent().empty();
+});
+
+
+//draggable callbacks
+function removeFromPlaylist($element, $target) {
+    $element.remove();
+    //playlist_dirty($target.attr('id'));
+    updatePlaylist('#'+$target.attr('id'));
+}
+
+// draggable callbacks
+function addToPlaylist($item, $target) {
+    
+    var $cloned = $item.clone();
+    $cloned.removeClass('grid-li').addClass('mini-grid-li')
+    .find('.grid-thumbnail').addClass('panel-thumbnail').removeClass('grid-thumbnail');
+    
+    var cls_add;
+    var cls_remove;
+    var icon_remove;
+    var icon_add;
+    var hint;
+    var target_id = $target.attr('id');
+    
+    if (target_id === 'tab-playlist-faves') {
+        cls_add = 'favourite-add';
+        cls_remove = 'favourite-remove';
+        icon_remove = '';
+        icon_add = '';
+        hint = 'Remove from Favourite';
+        $cloned.find('.playlist-add,.playlist-remove').remove();
+    } else {
+        cls_add = 'playlist-add';
+        cls_remove = 'playlist-remove';
+        icon_remove = 'fa-minus';
+        icon_add = 'fa-plus';
+        hint = 'Remove from Playlist';
+    }
+    
+    $cloned.find('.' + cls_add)
+    .addClass(cls_remove + ' ' + icon_remove)
+    .removeClass(cls_add + ' ' + icon_add + ' text-info')
+    .attr('title', hint);
+    
+    var $list;
+    if ($('ul', $target).length) {
+        $list = $('ul', $target);
+        // check if this item already exists in the list
+        var eid = $cloned.attr('id');
+        var $exists = $list.find('#'+eid);
+        if ($exists.length === 0) {
+            $list.append($cloned);
+            //playlist_dirty(target_id);
+        } else {
+            // highlight existing element in list
+            $exists.addClass('hilite')
+            delay(function() {
+                $exists.removeClass('hilite');
+            },600);
+        }
+    } else {
+        $list = $('<ul class="mini-grid-ul"/>').appendTo($target);
+        $list.append($cloned);
+        //playlist_dirty(target_id);
+    }
+    // hover preview
+    previewInit('.panel-thumbnail');
+    // auto save
+    var current_tab = $('.tab-pane.active').attr('id');
+    updatePlaylist('#'+target_id);
+}
+
+function deletePlaylist(tab_id) {
+    $('#div-plist').append(loading_overlay);
+    
+    $(tab_id).find('> .mini-grid-ul').remove(); // remove tab pane
+    $('#playlist-select option:selected').remove(); // remove tab select
+    
+    var playlist_id = tab_id.split('-').pop();
+    
+    if (/new/.test(tab_id)) {
+        $('#lov').remove();
+        $($('#playlist-select option:selected')).tab('show');
+    } else {
+        $.ajax({
+            url: '{{=URL("ajaxcalls", "deletePlaylist")}}',
+            dataType: 'html',
+            data: {
+                playlistid: playlist_id,
+            },
+        })
+        .done(function(data) {
+            $('#lov').remove();
+            $($('#playlist-select option:selected')).tab('show');
+        });
+    }
+}
+
+function sharePlaylist(tab_id, playlist_name, element_names) {
+    var url = '<a href="{{=URL("default", "importPlaylist", scheme=True, host=True)}}?playlist=' + tab_id + '">Click to Import Playlist</a>';
+    var elemlis = '';
+    for (var i=0;i<element_names.length;i++) {
+        elemlis += '<li>' + element_names[i] + '</li>';
+    }
+    $('#share-url').html(url);
+    $('#share-name').html(playlist_name);
+    $('#share-elements').html(elemlis);
+    
+    $('#share-dlg').modal('show');
+}
+
+function updatePlaylist(tab_id) {
+    // loading overlay
+    $('#div-plist').append(loading_overlay);
+    
+    // element ids of this playlist in csv format
+    var element_ids = '';
+    $(tab_id).find('> .mini-grid-ul > li').each(function() {
+        if (element_ids.length) {
+            element_ids += ',';
+        }
+        element_ids += this.id.split('-').pop();
+    });
+    
+    var plname;
+    var cburl;
+    var playlist_id = tab_id.split('-').pop();
+    if (/new\d+/.test(playlist_id)) {
+        cburl = '{{=URL("ajaxcalls", "createPlaylist")}}';
+        // get the playlist name
+        plname = $('#playlist-select option[data-target="'+tab_id+'"]').text();
+    } else {
+        cburl = '{{=URL("ajaxcalls", "updatePlaylist")}}';
+        plname = '';
+    }
+    
+    $.ajax({
+        url: cburl,
+        dataType: 'html',
+        data: {
+            playlistid: playlist_id,
+            playlistname: plname,
+            elementids: element_ids,
+        },
+    })
+    .done(function(data) {
+        $('#lov').remove();
+        if (data === '') {
+            alert('Error: failed to update playlist.');
+        } else {
+            //playlist_clean(tab_id.slice(1));
+        }
+    });
+}
+
+
+
+$(document).ready(function() {
+    
+    panelResize();
+    previewInit('.grid-thumbnail, .panel-thumbnail');
+    
+    var navbar_quickjump = '<ul class="nav navbar-nav navbar-right navbar-input"><li><input id="quickjump" class="form-control input-sm" placeholder="Quickjump" type="text"><i class="fa fa-search quickjump-icon"></i></li></ul>';
+    $('.navbar-right').after(navbar_quickjump);
+    
+    // Quickjump autocomplete
+    $.widget("custom.catcomplete", $.ui.autocomplete, {
+        _create: function() {
+            this._super();
+            this.widget().menu( "option", "items", "> :not(.ui-autocomplete-category)" );
+        },
+        _renderMenu: function(ul, items) {
+            var that = this,
+            currentCategory = "";
+            $.each(items, function(index, item) {
+                var li;
+                if ( item.category != currentCategory ) {
+                    ul.append( "<li class='ui-autocomplete-category'>" + item.category + "</li>" );
+                    currentCategory = item.category;
+                }
+                li = that._renderItemData( ul, item );
+                if ( item.category ) {
+                    li.attr( "aria-label", item.category + " : " + item.label );
+                }
+            });
+        }
+    });
+    var qcache = {};
+    $('#quickjump')
+    .catcomplete({
+        source: function(request, response) {
+            var term = request.term;
+            if (term in qcache) {
+                response(qcache[term]);
+                return;
+            }
+            $.getJSON('{{=URL("ajaxcalls", "getElementNames")}}', request, function(data, status, xhr) {
+                qcache[term] = data;
+                response(data);
+            });
+        },
+        minLength: 2,
+        autoFocus: false,
+        focus: function(event, ui) {
+            $(this).val(ui.item.label);
+            return false;
+        },
+        select: function(event, ui) {
+            window.location = '{{=URL("detail", "index")}}' + '/' + ui.item.value;
+        },
+        change: function(event, ui) {
+            if (ui.item === null) {
+                $(this).val('');
+            }
+        }
+    });
+    
+    
+    // username, email autocomplete
+    var users = new Bloodhound({
+        datumTokenizer: Bloodhound.tokenizers.obj.whitespace('name'),
+        queryTokenizer: Bloodhound.tokenizers.whitespace,
+        remote: {
+            url: '{{=URL("ajaxcalls", "getUsernames", scheme=True, host=True)}}?term=%QUERY',
+        }
+    });
+    users.initialize();
+    
+    // init note to,cc tagit
+    $('#username-autocomplete').tagsinput({
+        tagClass: function(item) {
+            switch (item.type) {
+                case 'Group': return 'label label-primary';
+                default: return 'label label-default';
+            }
+        },
+        itemValue: 'value',
+        itemText: 'label',
+        typeaheadjs: {
+            name: 'users',
+            displayKey: 'label',
+            source: users.ttAdapter(),
+        },
+    });
+    
+    $(document).on('click', '#share', function() {
+        share_submit();
+    });
+    function share_submit() {
+        var emails = [];
+        var items = $('#username-autocomplete').tagsinput('items');
+        for (x in items) {
+            emails.push(items[x].value);
+        }
+        
+        if (emails.length) {
+            $('#hint').html(' ');
+            
+            body = $('#share-url').html() + '<br><br>' +
+            $('#share-msg').val().replace(/\n/g,'<br>') +
+            '<br><br><strong>' + $('#share-name').text() +
+            '</strong><ul style="list-style:none;-webkit-padding-start:20px;-moz-padding-start:20px;-webkit-padding-before:0;-moz-padding-before:0;">' +
+            $('#share-elements').html() + '</ul>';
+            
+            $.ajax({
+                url: '{{=URL("ajaxcalls", "shareEmail")}}',
+                data: {
+                    content: body,
+                    emails: emails.join(','),
+                }
+            })
+            .done(function(data) {
+                $('#share-dlg').modal('hide');
+                alert('Email sent.');
+            });
+        } else {
+            $('#hint').html('Please enter valid user name');
+        }
+    }
+    
+    
+    // Init Droppable
+    $('.tab-pane').each(function() {
+        var $this = $(this);
+        $this.droppable({
+            accept: '.grid-li',
+            activeClass: 'drop-highlight',
+            drop: function(ev, ui) {
+                addToPlaylist(ui.draggable, $this);
+            }
+        });
+    });
+    
+    /* Scroll Back Top */
+    $(document).on('scroll', function() {
+        if ($(window).scrollTop() > 250) {
+            $('.scroll-top-wrapper').addClass('appear');
+        } else {
+            $('.scroll-top-wrapper').removeClass('appear');
+        }
+    });
+    $(document).on('click', '.scroll-top-wrapper', function() {
+        $('html,body').animate({scrollTop:0},100);
+    });
+    
+    // User panel Tab
+    $(document).on('click', '.panel-menu', function(e) {
+        e.preventDefault();
+        
+        $('#panel-btns > li').removeClass('active');
+        $(this).parent().addClass('active');
+        $('.tab-panel').removeClass('active');
+        $($(this).data('target')).addClass('active');
+        $('#panel-title').text($(this).parent().attr('title'));
+        // close menu
+        if (!$('.side-navbar-toggle').hasClass('collapsed')) {
+            $('.side-navbar-toggle').click();
+        }
+    });
+    
+    // init playlist select tab
+    $($('#playlist-select option:selected')).tab('show');
+    
+    // Playlist tab select
+    $(document).on('change', '#playlist-select', function () {
+        var current_tab = $('.tab-pane.active').attr('id');
+        updatePlaylist('#'+current_tab);
+        
+        var $selected = $(':selected', this);
+        $selected.tab('show');
+        var new_tab = $selected.data('target').slice(1);
+    });
+    
+    // Favourite & Playlist filter
+    $(document).on('keyup', '.panel-filter', function() {
+        
+    });
+    
+    $(document).on('click', '#prompt-accept', function() {
+    });
+    
+    // Element LI Favourite & Playlist buttons
+    $(document).on('mouseenter', '.header-icon-btn', function() {
+        var $this = $(this);
+        if ( $this.hasClass('favourite-remove') || $this.hasClass('playlist-remove')) {
+            $this.addClass('text-danger');
+        } else {
+            $this.addClass('text-info');
+            if ($this.hasClass('favourite-add')) {
+                $this.removeClass('fa-star-o').addClass('fa-star');
+            }
+        }
+    });
+    $(document).on('mouseleave', '.header-icon-btn', function() {
+        var $this = $(this);
+        if ( $this.hasClass('favourite-remove') || $this.hasClass('playlist-remove')) {
+            $this.removeClass('text-danger');
+        } else {
+            $this.removeClass('text-info');
+            if ($this.hasClass('favourite-add')) {
+                $this.removeClass('fa-star').addClass('fa-star-o');
+            }
+        }
+    });
+    
+    // Element LI Favourite button
+    $(document).on('click', '.favourite-add', function(e) {
+        e.preventDefault();
+        
+        if (!$('#tab-playlist').hasClass('active') ) {
+            $('#playlist-tab-btn').trigger('click');
+        }
+        
+        var $this = $(this);
+        var playlist_id = 0;
+        var element_id = $this.parent().data('elementid');
+        
+        var $litem = $this.closest('li');
+        var $current_playlist = $('.tab-pane.active');
+        if ($current_playlist.attr('id') != 'tab-playlist-faves') {
+            // select faves playlist
+            $('#playlist-select option:eq(0)').prop('selected', true).tab('show');
+            $current_playlist = $('#tab-playlist-faves');
+        }
+        addToPlaylist($litem, $current_playlist);
+    });
+    
+    // Navpanel - remove from favourite
+    $(document).on('click', '.favourite-remove', function(e) {
+        e.preventDefault();
+        
+        var $this = $(this);
+        var element_id = $this.parent().data('elementid');
+        var $current_tab = $this.closest('.tab-pane');
+        
+        removeFromPlaylist($this.closest('li'), $current_tab);
+    });
+    
+    // Element LI Playlist button
+    $(document).on('click', '.playlist-add', function(e) {
+        e.preventDefault();
+        
+        if (!$('#tab-playlist').hasClass('active') ) {
+            $('#playlist-tab-btn').trigger('click');
+        }
+        
+        var $this = $(this);
+        var playlist_id = 0;
+        var element_id = $this.parent().data('elementid');
+        var $litem = $this.closest('.grid-li');
+        var $current_playlist = $('.tab-pane.active');
+        if ($current_playlist.attr('id') == 'tab-playlist-faves') {
+            alert('Select a playlist to add the element.');
+            return;
+        }
+        addToPlaylist($litem, $current_playlist);
+    });
+    
+    // Navpanel - remove from playlist
+    $(document).on('click', '.playlist-remove', function(e) {
+        e.preventDefault();
+        
+        var $this = $(this);
+        var element_id = $this.parent().data('elementid');
+        var $current_tab = $this.closest('.tab-pane');
+        
+        removeFromPlaylist($this.closest('li'), $current_tab);
+    });
+    
+    
+    
+    // Playlist buttons
+    
+    // Delete Playlist
+    $(document).on('click', '#playlist-delete', function(e) {
+        var $selected = $('#playlist-select option:selected');
+        var tabid = $selected.data('target');
+        var playlist_name = $selected.text();
+        var msg;
+        if (playlist_name === 'Faves') {
+            msg = 'Clear Favourites?';
+        } else {
+            msg = 'Delete playlist "'+playlist_name+'"?';
+        }
+        if (confirm(msg)) {
+            deletePlaylist(tabid);
+        }
+    });
+    
+    // Update Playlist - save
+    $(document).on('click', '#playlist-update', function(e) {
+        var tabid = $('#playlist-select option:selected').data('target');
+        updatePlaylist(tabid);
+    });
+    
+    // Update Playlist - save
+    $(document).on('click', '#playlist-share', function(e) {
+        var $selected = $('#playlist-select option:selected');
+        var tabid = $selected.data('playlistid');
+        var playlistid = '#tab-playlist-';
+        var playlistname = $selected.val();
+        if (playlistname === 'Faves') {
+            playlistid += 'faves';
+        } else {
+            playlistid += tabid;
+        }
+        // get element names
+        var elementnames = [];
+        $(playlistid).find('.grid-name').each(function() {
+            elementnames.push(this.innerText);
+        });
+        sharePlaylist(tabid, playlistname, elementnames);
+    });
+    
+    // Init New Playlist
+    $(document).on('click', '#playlist-new', function(e) {
+        $('#playlist-base-ctrl').addClass('hidden');
+        $('#playlist-create-ctrl').removeClass('hidden').css('display', 'table');
+        $('#playlist-newname').focus();
+    });
+    
+    // enter key accept
+    $(document).on('keypress', '#playlist-newname', function(e) {
+        if (e.keyCode === 13) {
+            $('#playlist-create').trigger('click');
+        }
+    });
+    //  New playlist
+    $(document).on('click', '#playlist-create', function(e) {
+        $('#playlist-create-ctrl').addClass('hidden');
+        $('#playlist-base-ctrl').removeClass('hidden').css('display', 'table');
+        // add new playlist pane
+        var num = $('#playlist-tabs > div[id^="tab-playlist-new"]').length + 1;
+        var playlist_name = $('#playlist-newname').val();
+        if (playlist_name === '') {
+            playlist_name = 'Playlist' + num;
+        }
+        var playlist_id= 'tab-playlist-new' + num;
+        
+        $('#playlist-tabs').append('<div id="'+playlist_id+'" class="tab-pane"><ul class="mini-grid-ul"></ul></div>');
+        $('#playlist-select option').removeAttr('selected');
+        $('#playlist-select').append('<option data-target="#'+playlist_id+'" data-toggle="tab" selected>'+playlist_name+'</option>');
+        $(':selected', $('#playlist-select')).tab('show');
+        
+        // init droppable
+        var $playlist = $('#' + playlist_id);
+        $playlist.droppable({
+            accept: '.grid-li',
+            activeClass: 'drop-highlight',
+            drop: function(ev, ui) {
+                addToPlaylist(ui.draggable, $playlist);
+            }
+        });
+    });
+    
+    // Cancel create playlist
+    $(document).on('click', '#playlist-cancel', function(e) {
+        $('#playlist-create-ctrl').addClass('hidden');
+        $('#playlist-base-ctrl').removeClass('hidden').css('display', 'table');
+    });
+    
+    // Playlist filepaths copy
+    var playlistcopy = new ZeroClipboard($('#playlist-copy'));
+    playlistcopy.on('ready', function(event) {
+        playlistcopy.on('copy', function(event) {
+            var val = '';
+            var cur = $('#playlist-select option:selected').data('target');
+            $(cur).find('.element-file-path').each(function() {
+                if (val !== '') { val += '\n'; }
+                val += $(this).val();
+            });
+            event.clipboardData.setData('text/plain', val);
+        });
+    });
+    playlistcopy.on('error', function(event) {
+        alert('ZeroClipboard error of type "' + event.name + '": ' + event.message);
+        ZeroClipboard.destroy();
+    });
+    
+});
+</script>

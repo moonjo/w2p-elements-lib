@@ -1,0 +1,998 @@
+{{extend 'layout_bootstrap3.html'}}
+{{include 'common.html'}}
+{{include 'common_manage.html'}}
+
+{{
+import os
+xelements_css = '%sstatic/%s' % (request.folder, 'css/xelements.css')
+xelements_mtime = str(int(os.path.getmtime(xelements_css)))
+manage_css = '%sstatic/%s' % (request.folder, 'css/manage.css')
+manage_mtime = str(int(os.path.getmtime(manage_css)))
+melem_css = '%sstatic/%s' % (request.folder, 'css/m.elements.css')
+melem_mtime = str(int(os.path.getmtime(melem_css)))
+}}
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/xelements.css')}}?{{=xelements_mtime}}" />
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/manage.css')}}?{{=manage_mtime}}" />
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/m.elements.css')}}?{{=melem_mtime}}" />
+
+<div class="container-fluid">
+  <div id="admin-menu-back"></div>
+  <div id="admin-menu-div">
+    {{=menu}}
+  </div>
+  
+  <div id="admin-body">
+    <div id="home" class="page" style="display:none;">
+      <h3>Elements
+        <a id="add-new-btn" href="#new" class="btn btn-primary btn-xs">Add New</a>
+      </h3>
+      {{=table}}
+    </div>
+    <div id="new" class="page" style="display:none;">
+      <h3>Add New Element</h3>
+      {{=addform}}
+    </div>
+    <div id="edit" class="page" style="display:none;">
+      <h3>Edit Element <button id="reset-edit" class="btn btn-inverse btn-xs">Reset</button>
+      <a id="edit-link" class="btn btn-default btn-xs" href="#" target="_blank"> View</a>
+      </h3>
+      {{=editform}}
+    </div>
+  </div>
+</div>
+
+<div id="popup-window" class="modal fade">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-body">
+        <p id="popup-message"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+      </div>
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /.modal -->
+
+<script>
+
+$(document).ready(function() {
+    
+    // disable Enter key in the forms (new, edit element)
+    $('form').on('keydown', function(e) {
+        if (e.which == 13 && e.target.className !== 'tt-input') {
+            e.preventDefault();
+        }
+    });
+    
+    var new_element_thumbnail;
+    var edit_element_thumbnail;
+    var new_videofile;
+    
+    var table = $('#elements-table').DataTable({
+        'searchDelay': 300,
+        'order': [[1,'asc']],
+        'columns': [
+            {'data':'checkbox'},
+            {'data':'element_name'},
+            {'data':'category_name'},
+            {'data':'element_resolution'},
+            {'data':'element_cut_length'},
+            {'data':'element_colourspace'},
+            {'data':'element_alpha'},
+            {'data':'element_date_updated'},
+            {'data':'element_id'},
+            {'data':'branch_id'},
+            {'data':'category_id'},
+            {'data':'element_file_path'},
+            {'data':'element_qt_path'},
+            {'data':'element_internal_notes'},
+            {'data':'element_thumbnail'},
+            {'data':'element_videofile'},
+            {'data':'element_stereo'},
+            {'data':'element_source'},
+            {'data':'element_camera'},
+        ],
+        'columnDefs': [
+            {
+                 'targets': 0,
+                 'name': 'checkbox',
+                 'orderable': false,
+                 'searchable': false,
+                 'width': '1px',
+                 'className': 'center'
+              },
+            {
+                'targets': 1,
+                'name': 'xelements_element.name',
+                'orderable': true,
+                'searchable': true,
+                'render': function(data, type, row) {
+                    var element_id = row['DT_RowId'];
+                    var colurspace = row['element_colourspace'] != null ? row['element_colourspace']:'';
+                    var videofile = row['element_videofile'] != null ? row['element_videofile']:'';
+                    var qt_path = row['element_qt_path'] != null ? row['element_qt_path']:'';
+                    var camera = row['element_camera'] != null ? row['element_camera']:'';
+                    var source = row['element_source'] != null ? row['element_source']:'';
+                    var notes = row['element_internal_notes'] != null ? row['element_internal_notes']:'';
+                    
+                    var d = row['element_name'] + '|' + row['category_name'] + '|' +
+                    row['element_resolution'] + '|' + row['element_cut_length'] + '|' +
+                    colurspace + '|' + row['element_alpha'] + '|' +
+                    row['element_date_updated'] + '|' + row['element_id'] + '|' +
+                    row['branch_id'] + '|' + row['category_id'] + '|' +
+                    row['element_file_path'] + '|' + qt_path + '|' + notes + '|' +
+                    row['element_thumbnail'] + '|' + videofile + '|' +
+                    row['element_stereo'] +'|' +  source + '|' + camera;
+                    
+                    var row_menu = '{{=rowmenu}}'.replace(/ELEMENTID/g, element_id).replace(/ELEMENTDATA/g, d);
+                    return data + row_menu;
+                }
+             }, // name
+            {'targets': 2, 'name': 'xelements_category.name', 'orderable': true, 'searchable': true}, // category
+            {'targets': 3, 'name': 'xelements_element.resolution', 'orderable': false, 'searchable': true}, // tags
+            {
+                'targets': 4,
+                'name': 'xelements_element.cut_length',
+                'orderable': true,
+                'searchable': true,
+                'className': 'centered'
+            }, // length
+            {'targets': 5, 'name': 'xelements_element.colourspace', 'orderable': true, 'searchable': true}, // colourspace
+            {
+                'targets': 6,
+                'name': 'xelements_element.alpha',
+                'orderable': true,
+                'searchable': true,
+                'render': function(data, type, row) {
+                    if (data === 0) {
+                        return 'No';
+                    } else {
+                        return 'Yes';
+                    }
+                }
+             }, // alpha
+            {'targets': 7, 'name': 'xelements_element.date_updated', 'orderable': true, 'searchable': false}, // updated
+            {'targets': 8, 'name': 'xelements_element.id', 'orderable': false, 'searchable': false, 'visible': false}, // element ID
+            {'targets': 9, 'name': 'xelements_branch.id', 'orderable': false, 'searchable': false, 'visible': false}, // branch ID
+            {'targets': 10, 'name': 'xelements_category.id', 'orderable': false, 'searchable': false, 'visible': false}, // category ID
+            {'targets': 11, 'name': 'xelements_element.file_path', 'orderable': false, 'searchable': false, 'visible': false}, // linux path
+            {'targets': 12, 'name': 'xelements_element.qt_path', 'orderable': false, 'searchable': false, 'visible': false}, // qt path
+            {'targets': 13, 'name': 'xelements_element.internal_notes', 'orderable': false, 'searchable': false, 'visible': false}, // internal notes
+            {'targets': 14, 'name': 'xelements_element.thumbnail', 'orderable': false, 'searchable': false, 'visible': false}, // thumbnail
+            {'targets': 15, 'name': 'xelements_element.videofile', 'orderable': false, 'searchable': false, 'visible': false}, // videofile
+            {'targets': 16, 'name': 'xelements_element.stereo', 'orderable': false, 'searchable': false, 'visible': false}, // stereo
+            {'targets': 17, 'name': 'xelements_element.source', 'orderable': false, 'searchable': false, 'visible': false}, // source
+            {'targets': 18, 'name': 'xelements_element.camera', 'orderable': false, 'searchable': false, 'visible': false}, // camera
+        ],
+        'rowCallback': function(row, data, index) {
+            //var d = data.join('|');
+            //$(row).attr('data-origdata', d);
+        },
+        'processing': true,
+        'serverSide': true,
+        'ajax': '{{=URL("elementsTable")}}',
+        'drawCallback': function(settings) {
+            menuResize();
+            bulkMenu('element');
+            $('#check-all-rows').prop('checked', false);
+        },
+    });
+    //new $.fn.dataTable.FixedHeader(table);
+    
+    getPopularTags();
+    
+    var tags = new Bloodhound({
+        datumTokenizer: Bloodhound.tokenizers.obj.whitespace('name'),
+        queryTokenizer: Bloodhound.tokenizers.whitespace,
+        local: {{=XML(tag_list)}},
+    });
+    tags.initialize();
+    
+    // New element
+    var $tagnew = $('#new-tag-input');
+    $tagnew.tagsinput({
+        tagClass: 'label label-primary',
+        typeaheadjs: {
+            name: 'tags',
+            displayKey: 'name',
+            valueKey: 'name',
+            source: tags.ttAdapter(),
+        },
+    });
+    
+    // tag add remove events
+    $tagnew.on('itemAdded', function(e) {
+        var vals = $('#new-tag-add').val().trim();
+        if (vals !== '') {
+            vals += ',';
+        }
+        $('#new-tag-add').val(vals + e.item);
+    });
+    
+    $tagnew.on('itemRemoved', function(e) {
+        var vals = $('#new-tag-add').val();
+        var re = new RegExp('\\b'+e.item+'\\b,|,\\b'+e.item+'\\b$|\\b'+e.item+'\\b');
+        $('#new-tag-add').val(vals.replace(re, ''));
+    });
+    
+    // Edit element
+    var $tagedit = $('#edit-tag-input');
+    $tagedit.tagsinput({
+        tagClass: 'label label-primary',
+        typeaheadjs: {
+            name: 'tags',
+            displayKey: 'name',
+            valueKey: 'name',
+            source: tags.ttAdapter(),
+        }
+    });
+    $tagedit.on('itemAdded', function(e) {
+        // first check if this is remove existing tag
+        var re = new RegExp('\\b'+e.item+'\\b,|,\\b'+e.item+'\\b$|\\b'+e.item+'\\b');
+        var removed = $('#edit-tag-remove').val().trim();
+        if (re.test(removed)) {
+            $('#edit-tag-remove').val(removed.replace(re, ''));
+        } else {
+            var vals = $('#edit-tag-add').val().trim();
+            if (vals !== '') {
+                vals += ',';
+            }
+            $('#edit-tag-add').val(vals + e.item);
+        }
+    });
+    $tagedit.on('itemRemoved', function(e) {
+        var added = $('#edit-tag-add').val();
+        var re = new RegExp('\\b'+e.item+'\\b,|,\\b'+e.item+'\\b$|\\b'+e.item+'\\b');
+        // check if tag is new or existing
+        if (re.test(added)) {
+            // new tag
+            $('#edit-tag-add').val(added.replace(re, ''));
+        } else {
+            // existing tag
+            var vals = $('#edit-tag-remove').val().trim();
+            if (vals !== '') {
+                vals += ',';
+            }
+            $('#edit-tag-remove').val(vals + e.item);
+        }
+    });
+    
+    function getElementTags(eid) {
+        // reset Element Tags
+        $('.tag-loading').show();
+        $.ajax({
+            url: '{{=URL("getElementTagsAJAX")}}',
+            dataType: 'json',
+            data: { element: eid }
+        })
+        .done(function(data) {
+            $('.tag-loading').hide();
+            $tagedit.tagsinput('removeAll');
+            if (data !== '') {
+                $.each(data, function(idx, tag) {
+                    $tagedit.tagsinput('add', tag);
+                });
+            }
+            $('#edit-tag-add').val('');
+            $('#edit-tag-remove').val('');
+        });
+    }
+    
+    function getPopularTags() {
+        $.ajax({
+            url: '{{=URL("getPopularTagsAJAX")}}',
+            dataType: 'json',
+        })
+        .done(function(data) {
+            var tags = '';
+            $.each(data, function(idx, t) {
+                var tid = t['xelements_tag']['id'];
+                var name = t['xelements_tag']['name'];
+                var tag = '<a class="tag-link" data-tagid="{0}" href="#">{1}</a>'.format(tid,name);
+                tags += tag;
+            });
+            $('.tag-board').empty().append(tags);
+        });
+    }
+    
+    // apply bulk action to selected rows
+    $(document).on('click', '#bulk-apply', function() {
+        
+        // close quick edit row if any
+        $('#elements-table .inline-edit-row').remove();
+        $('#elements-table tr').show();
+        
+        var cells = table.cells().nodes();
+        var selected = [];
+        var opts = '';
+        $(cells).find(':checked').each(function() {
+            var id = $(this).closest('tr').attr('id');
+            var name = $('td', $(this).closest('tr')).eq(1)[0].innerText.trim();
+            opts += '<option value="' + id + '" selected>' + name + '</option>';
+        });
+        
+        var action = $('#bulk-action').val();
+        
+        if (opts !== '' && action !== '') {
+            if (action === 'edit') {
+                $('.bulk-edit-row').remove();
+                var edit_row = '{{=editbulk}}';
+                $('#elements-table tbody').prepend(edit_row);
+                
+                // add selected row ids
+                $('.bulk-edit-element-id').empty().append(opts);
+                $('.bulk-edit-element-id').select2();
+                
+                /* inline Tag field */
+                var $inlinetags = $('.bulk-edit-element-tags');
+                $inlinetags.tagsinput({
+                    tagClass: 'label label-primary',
+                    typeaheadjs: {
+                        name: 'tags',
+                        displayKey: 'name',
+                        valueKey: 'name',
+                        source: tags.ttAdapter(),
+                    }
+                });
+            }
+        }
+    });
+    
+    $(document).on('click', '.bulk-edit-update', function() {
+        var ids = $('.bulk-edit-element-id').val().join(',');
+        if (ids === '') {
+            return;
+        }
+        
+        var categoryid = $('.bulk-edit-category-select').val();
+        
+        var empty = true;
+        $('.bulk-edit-row input').each(function() {
+            if ($(this).val() !== '') {
+                empty = false;
+                return false;
+            }
+        });
+        if ($('.bulk-edit-element-notes').val() !== '') {
+            empty = false;
+        }
+        
+        if (categoryid || !empty) {
+            $.ajax({
+                url: '{{=URL("updateElements")}}',
+                data: {
+                    ids: ids,
+                    resolution: $('.bulk-edit-element-resolution').val(),
+                    cutlength: $('.bulk-edit-element-cutlength').val(),
+                    colourspace: $('.bulk-edit-element-colourspace').val(),
+                    camera: $('.bulk-edit-element-camera').val(),
+                    alpha: $('.bulk-edit-element-alpha').val(),
+                    source: $('.bulk-edit-element-source').val(),
+                    stereo: $('.bulk-edit-element-stereo').val(),
+                    notes: $('.bulk-edit-element-notes').val(),
+                    tags: $('.bulk-edit-element-tags').val(),
+                    categoryid: categoryid,
+                },
+            })
+            .done(function(data) {
+                table.draw();
+            });
+        } else {
+            alert("All values cannot be empty");
+        }
+    });
+    
+    // cancel inline edit
+    $(document).on('click', '.bulk-edit-cancel', function(e) {
+        e.preventDefault();
+        $(this).closest('tr').remove();
+    });
+    
+    // row checkbox
+    $(document).on('change', '#check-all-rows', function() {
+        var checked = $(this).is(':checked');
+        var cells = table.cells().nodes();
+        $(cells).find(':checkbox').each(function(idx) {
+            if (!$(this).hasClass('default')) {
+                $(this).prop('checked', checked);
+            }
+        });
+        rows_all_selected = checked;
+    });
+    
+    // Delete callback
+    $(document).on('click', '.delete-item', function(e) {
+        e.preventDefault();
+        var item_id = this.href.split('#')[1];
+        var name = $(this).closest('td').clone().children().remove().end().text();
+        var $tr = $(this).closest('tr');
+        
+        if (confirm("Delete " + name + "?")) {
+            $.ajax({
+                url: '{{=URL("deleteElement")}}',
+                data: {elementid: item_id}
+            })
+            .done(function(data) {
+                table.rows($(this).closest('tr')).remove().draw(false);
+            })
+            .fail(function(xhr, statustxt) {
+                alert("Error: failed to delete element");
+            });
+        }
+    });
+    
+    $(document).on('click', '#add-new-btn', function() {
+        $('#elements-new').trigger('click');
+    });
+    
+    
+    // update inline edit
+    $(document).on('click', '.inline-edit-update', function() {
+        var good = true;
+        $('.inline-edit-row input').each(function() {
+            var $this = $(this);
+            if (!$this.hasClass('inline-name-input')) {
+                // allow blanks except name
+                return true;
+            }
+            if ($this.val() === '') {
+                good = false;
+                $this.parent().addClass('has-error');
+            } else {
+                $this.parent().removeClass('has-error');
+            }
+        });
+        
+        if (good) {
+            $.ajax({
+                url: '{{=URL("quickUpdateElement")}}',
+                data: {
+                    elementid: $('.inline-edit-element-id').val(),
+                    name: $('.inline-edit-element-name').val(),
+                    code: $('.inline-edit-element-code').val(),
+                    resolution: $('.inline-edit-element-resolution').val(),
+                    cutlength: $('.inline-edit-element-cutlength').val(),
+                    colourspace: $('.inline-edit-element-colourspace').val(),
+                    camera: $('.inline-edit-element-camera').val(),
+                    alpha: $('.inline-edit-element-alpha').val(),
+                    source: $('.inline-edit-element-source').val(),
+                    stereo: $('.inline-edit-element-stereo').val(),
+                    notes: $('.inline-edit-element-notes').val(),
+                    categoryid: $('.inline-edit-category-select').val(),
+                    tags_add: $('.inline-edit-tag-add').val(),
+                    tags_remove: $('.inline-edit-tag-remove').val()
+                }
+            })
+            .done(function(data) {
+                table.draw();
+            });
+        }
+    });
+    
+    // cancel inline edit
+    $(document).on('click', '.inline-edit-cancel', function(e) {
+        e.preventDefault();
+        $(this).closest('tr').prev().show().end().remove();
+    });
+    
+    function loadEditForm(edata) {
+        $('#edit-link').attr('href', '{{=URL("detail","index")}}/'+edata['id']);
+        $('#edit-name').val(edata['name']).data('orig', edata['name']);
+        $('#edit-code').val(edata['element_code']).data('orig', edata['element_code']);
+        $('#elementid').val(edata['id']);
+        $('#edit-resolution').val(edata['resolution']).data('orig', edata['resolution']);
+        $('#edit-length').val(edata['cut_length']).data('orig', edata['cut_length']);
+        $('#edit-colourspace').val(edata['colourspace']).data('orig', edata['colourspace']);
+        $('#edit-camera').val(edata['camera']).data('orig', edata['camera']);
+        $('#edit-alpha').val(edata['alpha']).data('orig', edata['alpha']);
+        $('#edit-source').val(edata['source']).data('orig', edata['source']);
+        $('#edit-linuxpath').val(edata['file_path']).data('orig', edata['file_path']);
+        $('#edit-qtpath').val(edata['qt_path']).data('orig', edata['qt_path']);
+        $('#edit-notes').val(edata['internal_notes']).data('orig', edata['internal_notes']);
+        $('#edit-videofile').val(edata['videofile']).data('orig', edata['videofile']);
+        $('#edit-stereo').val(edata['stereo']).data('orig', edata['stereo']);
+        
+        $('#edit-fullname').text(edata['name']+'X'+edata['element_code']).removeClass('text-muted').addClass('text-info');
+        
+        // thumbnail
+        var thumbnail =  '{{=URL("static", "/archive/elements/thumbs")}}/' + edata['thumbnail'];
+        $('#edit-thumbnail-orig').val(thumbnail);
+        $('#edit-holder').empty().append('<img src="'+thumbnail+'" style="width:250px;">');
+        
+        $('#edit-branch-select').val(edata['branch_id']).data('orig', edata['branch_id']);
+        $.ajax({
+            url: '{{=URL("getCategoriesAJAX")}}',
+            data: { branch: edata['branch_id'] }
+        })
+        .done(function(data) {
+            $('#edit-category-select').empty().append(data);
+            $('#edit-category-select').val(edata['category_id']).data('orig', edata['category_id']);
+        });
+        getElementTags(edata['id']);
+    }
+    
+    // Edit callback
+    $(document).on('click', '.row-edit > a', function(e) {
+        var edata = $(this).data('elementdata').split('|');
+        if ($(this).hasClass('quickedit')) {
+            /* Quick Edit */
+            e.preventDefault();
+            
+            // close bulk edit if open
+            $('.bulk-edit-row').remove();
+            
+            // destroy other open inline edit rows
+            $('#elements-table .inline-edit-row').remove();
+            $('#elements-table tr').show();
+            
+            var edit_row = '{{=editinline}}';
+            var $row = $(this).closest('tr');
+            
+            $row.after(edit_row).hide();
+            
+            $('.inline-edit-element-id').val(edata[7]);
+            $('.inline-header').text(edata[0]);
+            var tmp = edata[0].split('X');
+            $('.inline-edit-element-name').val(tmp[0]);
+            $('.inline-edit-element-code').val(tmp[1]);
+            $('.inline-edit-element-resolution').val(edata[2]);
+            $('.inline-edit-element-cutlength').val(edata[3]);
+            $('.inline-edit-element-colourspace').val(edata[4]);
+            $('.inline-edit-element-camera').val(edata[17]);
+            $('.inline-edit-element-alpha').val(edata[5]);
+            $('.inline-edit-element-source').val(edata[16]);
+            $('.inline-edit-element-notes').val(edata[12]);
+            //$('.inline-edit-element-videofile').val(edata[14]);
+            $('.inline-edit-element-stereo').val(edata[15]);
+            
+            $('.inline-edit-category-select').val(edata[9]);
+            
+            $('.inline-name-input').on('change', function() {
+                var name = $('.inline-edit-element-name').val();
+                var code = $('.inline-edit-element-code').val();
+                if (name === '' && code === '') {
+                    $('.inline-header').text('Need a valid name');
+                } else {
+                    $('.inline-header').text(name + 'X' + code);
+                }
+            });
+            
+            /* inline Tag field */
+            var $inlinetags = $('.inline-edit-element-tags');
+            $inlinetags.tagsinput({
+                tagClass: 'label label-primary',
+                typeaheadjs: {
+                    name: 'tags',
+                    displayKey: 'name',
+                    valueKey: 'name',
+                    source: tags.ttAdapter(),
+                }
+            });
+            $inlinetags.on('itemAdded', function(e) {
+                // first check if this is remove existing tag
+                var re = new RegExp('\\b'+e.item+'\\b,|,\\b'+e.item+'\\b$|\\b'+e.item+'\\b');
+                var removed = $('.inline-edit-tag-remove').val().trim();
+                if (re.test(removed)) {
+                    $('.inline-edit-tag-remove').val(removed.replace(re, ''));
+                } else {
+                    var vals = $('.inline-edit-tag-add').val().trim();
+                    if (vals !== '') {
+                        vals += ',';
+                    }
+                    $('.inline-edit-tag-add').val(vals + e.item);
+                }
+            });
+            $inlinetags.on('itemRemoved', function(e) {
+                var added = $('.inline-edit-tag-add').val();
+                var re = new RegExp('\\b'+e.item+'\\b,|,\\b'+e.item+'\\b$|\\b'+e.item+'\\b');
+                // check if tag is new or existing
+                if (re.test(added)) {
+                    // new tag
+                    $('.inline-edit-tag-add').val(added.replace(re, ''));
+                } else {
+                    // existing tag
+                    var vals = $('.inline-edit-tag-remove').val().trim();
+                    if (vals !== '') {
+                        vals += ',';
+                    }
+                    $('.inline-edit-tag-remove').val(vals + e.item);
+                }
+            });
+            
+            $('.tag-loading').show();
+            $.ajax({
+                url: '{{=URL("getElementTagsAJAX")}}',
+                dataType: 'json',
+                data: { element: edata[7] }
+            })
+            .done(function(data) {
+                $('.tag-loading').hide();
+                $inlinetags.tagsinput('removeAll');
+                if (data !== '') {
+                    $.each(data, function(idx, tag) {
+                        $inlinetags.tagsinput('add', tag);
+                    });
+                }
+                $('.inline-edit-tag-add').val('');
+                $('.inline-edit-tag-remove').val('');
+            });
+            
+        } else {
+            /* Edit page */
+            $('.page').hide();
+            $('#edit').show();
+            $('#elements-home').parent().removeClass('current');
+            $('#elements-new').parent().removeClass('current');
+            $('html,body').animate({scrollTop:0},1);
+            
+            // load data
+            var edict = {};
+            var tmp = edata[0].split('X');
+            edict['name'] = tmp[0];
+            edict['element_code'] = tmp[1];
+            edict['alpha'] = edata[5];
+            edict['branch_id'] = edata[8];
+            edict['camera'] = edata[17];
+            edict['category_id'] = edata[9];
+            edict['colourspace'] = edata[4];
+            edict['cut_length'] = edata[3];
+            edict['file_path'] = edata[10];
+            edict['id'] = edata[7];
+            edict['internal_notes'] = edata[12];
+            edict['qt_path'] = edata[11];
+            edict['resolution'] = edata[2];
+            edict['source'] = edata[16];
+            edict['stereo'] = edata[15];
+            edict['thumbnail'] = edata[13];
+            edict['videofile'] = edata[14];
+            
+            loadEditForm(edict);
+        }
+        
+    });
+    
+    $(document).on('click', '#new-tag-reset', function() {
+        $tagnew.tagsinput('removeAll');
+        $('#new-tag-add').val('');
+        $('#new-tag-remove').val('');
+    });
+    
+    $(document).on('click', '#edit-tag-reset', function() {
+        getElementTags($('#elementid').val());
+        $('#edit-tag-add').val('');
+        $('#edit-tag-remove').val('');
+    });
+    
+    /* popular Tag links */
+    $(document).on('click', '.tag-link', function(e) {
+        e.preventDefault();
+        var $this = $(this);
+        if ($this.parent().attr('id') === 'new-tag-mostused')  {
+            //$tagnew.tagsinput('add', {'id':$this.data('tagid'), 'name':$this.text()});
+            $tagnew.tagsinput('add', $this.text());
+        } else {
+            //$tagedit.tagsinput('add', {'id':$this.data('tagid'), 'name':$this.text()});
+            $tagedit.tagsinput('add', $this.text());
+        }
+    });
+    
+    
+    $(document).on('click', '#edit-thumbnail-reset', function() {
+        var thumbnail = $('#edit-thumbnail-orig').val();
+        $('#edit-holder').empty().append('<img src="'+thumbnail+'" style="width:250px;">');
+        
+        //var $fileinput = $('#edit-uploadfile');
+        //$fileinput.replaceWith($fileinput.clone(true));
+        document.getElementById('edit-uploadfile').value = '';
+        edit_element_thumbnail = null;
+    });
+    
+    // FORM callbacks
+    $(document).on('keyup', '.nameinput', function() {
+        var mode = this.id.split('-')[0];
+        var $fullname = $('#'+mode+'-fullname');
+        var n = $('#'+mode+'-name').val() + 'X' + $('#'+mode+'-code').val();
+        if (n !== 'X') {
+            $fullname.text(n).removeClass('text-muted').addClass('text-info');
+        } else {
+            if (mode === 'new') {
+                $fullname.text('New Element Name').removeClass('text-info').addClass('text-muted');
+            } else {
+                $fullname.text($fullname.data('orig'));
+            }
+        }
+        if ($(this).val() !== '') {
+            $(this).parent().removeClass('has-error');
+        }
+    });
+    
+    $(document).on('click', '#element-create', function(e) {
+        e.preventDefault();
+    });
+    
+    
+    function resetEditForm() {
+        $('#form-edit input').each(function() {
+            $(this).val($(this).data('orig'));
+        });
+        $('#edit-fullname').text($('#edit-name').val()+'X'+$('#edit-code').val());
+        // reset selects
+        $('#edit-branch-select').val($('#edit-branch-select').data('orig'));
+        $.ajax({
+            url: '{{=URL("getCategoriesAJAX")}}',
+            data: {
+                branch: $('#edit-branch-select').data('orig'),
+            }
+        })
+        .done(function(data) {
+            $('#edit-category-select').empty().append(data);
+            $('#edit-category-select').val($('#edit-category-select').data('orig'));
+        });
+        
+    }
+    
+    $(document).on('click', '#reset-edit', function() {
+        resetEditForm();
+    });
+    
+    /*
+    
+    Thumbnail Drag and Drop 
+    
+    */
+    $(document).on('click', '.manualupload-fakebtn, .videoupload-btn', function(e) {
+        $(this).closest('div').find('input').trigger('click');
+    });
+    
+    var $holder = $('.holder');
+    
+    var tests = {
+        filereader: typeof FileReader != 'undefined',
+        dnd: 'draggable' in document.createElement('span'),
+        formdata: !!window.FormData,
+        progress: "upload" in new XMLHttpRequest
+    }, 
+    support = {
+        filereader: $('.filereader'),
+        formdata: $('.formdata'),
+        progress: $('.progress')
+    },
+    acceptedTypes = {
+        'image/png': true,
+        'image/jpeg': true,
+        'image/gif': true
+    }
+    
+    
+    "filereader formdata progress".split(' ').forEach(function (api) {
+        if (tests[api] === false) {
+            support[api].removeClass('hidden');
+        } else {
+            support[api].addClass('hidden');
+        }
+    });
+    
+    function previewfile(file, from) {
+        if (tests.filereader === true && acceptedTypes[file.type] === true) {
+            var reader = new FileReader();
+            reader.onload = function (event) {
+                var image = new Image();
+                image.src = event.target.result;
+                image.width = 250; // a fake resize
+                $('#'+from+'-holder').empty().append(image);
+            };
+            reader.readAsDataURL(file);
+        } else {
+            $('#'+from+'-holder').append('<p>Uploaded ' + file.name + ' ' + (file.size ? (file.size/1024|0) + 'K' : ''));
+        }
+        //console.log(file);
+    }
+    
+    function readfiles(files, from) {
+        // from = newelem or editelem
+        if (files.length === 0) {
+            return false;
+        }
+        if (tests.formdata) {
+            if (from === 'new') {
+                new_element_thumbnail = files[0];
+            } else {
+                edit_element_thumbnail = files[0];
+            }
+        }
+        previewfile(files[0], from);
+        
+        // now post a new XHR request
+        return false;
+        
+        if (tests.formdata) {
+            var $progress = $(from+'-uploadprogress');
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/devnull.php');
+            xhr.onload = function() {
+                $progress.val(100).html(100);
+            };
+            if (tests.progress) {
+                xhr.upload.onprogress = function (event) {
+                    if (event.lengthComputable) {
+                        var complete = (event.loaded / event.total * 100 | 0);
+                        $progress.val(complete).html(complete);
+                    }
+                }
+            }
+            xhr.send(formData);
+        }
+    }
+    
+    function ignoreDrag(e) {
+        //e.originalEvent.stopPropagation();
+        //e.originalEvent.preventDefault();
+        //e.stopPropagation();
+        e.preventDefault();
+    }
+    
+    $(document).on('change', '.videoupload', function(e) {
+        var filename = $(this).val().split('/').pop().split('\\').pop();
+        $('.videoupload-btn').text(filename);
+        new_videofile = this.files[0];
+    });
+    
+    $(document).on('change', '.manualupload', function(e) {
+        var from = e.target.id.split('-')[0];
+        readfiles(this.files, from);
+    });
+    
+    if (tests.dnd) {
+        $holder.on('dragover', function(e) {
+            ignoreDrag(e)
+            $(this).addClass('hover');
+            return false;
+        });
+        $holder.on('dragend', function(e) {
+            ignoreDrag(e)
+            $(this).removeClass('hover');
+            return false;
+        });
+        $holder.on('drop', function(e) {
+            ignoreDrag(e)
+            $(this).removeClass('hover');
+            var from = e.target.id.split('-')[0];
+            readfiles(e.originalEvent.dataTransfer.files, from);
+        });
+    } else {
+        $('.yesdragdrop').addClass('hidden');
+        $('.nodragdrop').removeClass('hidden');
+    }
+    
+    
+    // Branch select event
+    $(document).on('change', '.branch-select', function() {
+        var $this = $(this);
+        var $catselect;
+        if ($this.hasClass('mode-new')) {
+            $catselect = $('#new-category-select');
+        } else {
+            $catselect = $('#edit-category-select');
+        }
+        // ajax get categories
+        $.ajax({
+            url: '{{=URL("getCategoriesAJAX")}}',
+            data: {
+                branch: $this.val(),
+            }
+        })
+        .done(function(data) {
+            $catselect.empty().append(data);
+        });
+    });
+    
+    $(document).on('change', '.category-select', function() {
+        
+    });
+    
+    // new form submit
+    $(document).on('click', '.element-form-submit', function(e) {
+        e.preventDefault();
+        
+        var mode = this.id === 'element-create' ? 'new':'edit';
+        var good = true;
+        if ($('#'+mode+'-name').val() === '') {
+            good = false;
+            $('#'+mode+'-name').parent().addClass('has-error');
+        } else {
+            $('#'+mode+'-name').parent().removeClass('has-error');
+        }
+        
+        if ($('#'+mode+'-code').val() === '') {
+            good = false;
+            $('#'+mode+'-code').parent().addClass('has-error');
+        } else {
+            $('#'+mode+'-code').parent().removeClass('has-error');
+        }
+        
+        if ($('#'+mode+'-branch-select').val() === '') {
+            good = false;
+            $('#'+mode+'-branch-select').parent().addClass('has-error');
+        } else {
+            $('#'+mode+'-branch-select').parent().removeClass('has-error');
+        }
+        
+        if ($('#'+mode+'-category-select').val() === '') {
+            good = false;
+            $('#'+mode+'-category-select').parent().addClass('has-error');
+        } else {
+            $('#'+mode+'-category-select').parent().removeClass('has-error');
+        }
+        
+        if (mode === 'new' && (new_element_thumbnail === null || $('#new-uploadfile').val() === '')) {
+            good = false;
+            $('#new-holder').addClass('has-error');
+        } else {
+            $('#new-holder').removeClass('has-error');
+        }
+        
+        if (good) {
+            $('body').prepend(processing_overlay);
+            
+            // get formdata
+            var formdata = new FormData(document.forms.namedItem('form-'+mode));
+            
+            if (mode === 'new') {
+                formdata.append('thumbnail', new_element_thumbnail);
+            } else {
+                formdata.append('thumbnail', edit_element_thumbnail);
+            }
+            if (new_videofile) {
+                formdata.append('videofile', new_videofile);
+            }
+            
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '{{=URL("createUpdateElement")}}', true);
+            xhr.onreadystatechange = function() {
+                $('#pov').remove(); // remove overlay
+                if (xhr.status == 200) {
+                    // reset form and popup success message
+                    var msg, formid;
+                    if (mode === 'new') {
+                        msg = "Element created.";
+                        $('#form-new')[0].reset();
+                        $('#new-holder').empty(); // reset thumbnail
+                        $('.videoupload-btn').text('Select a Video');
+                        $tagnew.tagsinput('removeAll'); // reset tags
+                        $('#new-fullname').val('New Element Name').removeClass('text-info').addclass('text-muted'); // reset new element name
+                    } else {
+                        msg = "Element updated.";
+                    }
+                    $('#popup-message').text(msg);
+                    $('#popup-window').modal('show');
+                    table.draw();
+                    
+                } else {
+                    alert('Error ' + xhr.status + ' occurred.\n');
+                }
+            };
+            xhr.send(formdata);
+        }
+    });
+    
+    
+    // init
+    if (window.location.hash === '#new') {
+        $('#elements-new').trigger('click');
+    } else if (/#edit/.test(window.location.hash)) {
+        // show edit
+        $('.page').hide();
+        $('#edit').show();
+        $('#elements-home').parent().removeClass('current');
+        $('#elements-new').parent().removeClass('current');
+        var edata = {{=XML(response.json(elementdata))}};
+        //console.log(edata);
+        loadEditForm(edata);
+    } else {
+        $('#elements-home').trigger('click');
+    }
+    
+});
+</script>
+

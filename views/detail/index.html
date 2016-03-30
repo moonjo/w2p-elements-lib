@@ -1,0 +1,342 @@
+{{extend 'layout_bootstrap3.html'}}
+{{include 'common.html'}}
+{{include 'video_control.html'}}
+
+{{
+import os
+xelements_css = '%sstatic/%s' % (request.folder, 'css/xelements.css')
+xelements_mtime = str(int(os.path.getmtime(xelements_css)))
+detail_css = '%sstatic/%s' % (request.folder, 'css/detail.css')
+detail_mtime = str(int(os.path.getmtime(detail_css)))
+dark_css = '%sstatic/%s' % (request.folder, 'css/dark-theme.css')
+dark_mtime = str(int(os.path.getmtime(dark_css)))
+}}
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/jquery-ui.css')}}" />
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/xelements.css')}}?{{=xelements_mtime}}" />
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/detail.css')}}?{{=detail_mtime}}" />
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/dark-theme.css')}}?{{=dark_mtime}}" />
+
+<style>
+.copy-btn {
+  border: 1px solid #ccc;
+  background-color: #eee;
+  margin-left: 1%;
+}
+.copy-btn.zeroclipboard-is-hover { background-color: #ddd; }
+.copy-btn.zeroclipboard-is-active { background-color: #ccc; }
+.copy-btn:focus { outline: none; }
+.edit-link-btn {
+    padding: 0 5px;
+    margin-left: 5px;
+}
+</style>
+
+<!-- BODY -->
+<div class="container-fluid">
+  <div class="row">
+    <div class="addressbar">
+      <a href="{{=URL('index')}}" id="address-home"><i class="fa fa-lg fa-home"></i></a>{{=address}}
+    </div>
+    
+    <div class="col-md-9 col-lg-10" style="padding:0;">
+      
+      <div id="detail-sidebar" class="col-md-4 col-lg-3 detail-pane">
+        {{=detailpanel}}
+        <br>
+        {{=tagpanel}}
+      </div>
+      <div id="detail-main" class="col-md-8 col-lg-9">
+        {{=videoplayer}}
+      </div>
+      
+      <div id="detail-footer" class="col-lg-12">
+        <div class="comments-section">
+          <label class="text-muted">Comments</label>
+            <div class="comments-wrapper"><textarea class="form-control comment-input" rows="1"></textarea></div>
+            <div><button class="btn btn-default btn-sm comment-submit" data-application="{{=element_id}}">Post Comment</button></div>
+            <hr>
+            <div><ul id="comments-list" class="comments"><i class="fa fa-spin fa-refresh"></i></ul></div>
+          </div>
+        <div style="padding-top:20px;"></div>
+      </div>
+      
+    </div>
+    
+    <div class="user-panel col-md-3 col-lg-2 hidden-xs">
+      {{=navpanel}}
+    </div>
+    
+    <span id="playlist-preview"></span>
+    
+  </div>
+</div>
+
+<div class="scroll-top-wrapper">
+  <span class="scroll-top-inner">
+    <i class="fa fa-3x fa-arrow-circle-up"></i>
+  </span>
+</div>
+
+<script>
+var loading_icon = '<span class="fa fa-spin fa-refresh"></span>';
+
+function getCookie(name) {
+    //var name = 'xelements_video=';
+    name += '=';
+    var ca = document.cookie.split(';');
+    for (var i=0; i<ca.length; i++) {
+        var c = ca[i];
+        while (c.charAt(0) === ' ') {
+            c = c.substring(1);
+        }
+        if (c.indexOf(name) === 0) {
+            return c.substring(name.length, c.length);
+        }
+    }
+    return '';
+}
+
+$(document).ready(function() {
+    
+    var V_WIDTH = 360;
+    var V_HEIGHT = 203;
+    
+    function changeScreenSize(s) {
+        var max_width = $('.video-wrapper').width() - 10;
+        switch (s) {
+            case '2x':
+                // 800 x 406
+                $('#video-expand').addClass('hidden');
+                $('#video-orgsize').removeClass('hidden').show();
+                
+                if (max_width < V_WIDTH*2) {
+                    var n_height = V_HEIGHT * (max_width / V_WIDTH);
+                    $('video').attr({'width':max_width,'height':n_height});
+                    $('#video-ctrl-wrapper').css({'width':max_width});
+                    $('.video-ctrl-center').css('width', +(max_width/10)+'%');
+                } else {
+                    $('video').attr({'width':V_WIDTH*2,'height':V_HEIGHT*2});
+                    $('#video-ctrl-wrapper').css({'width':V_WIDTH*2});
+                    $('.video-ctrl-center').css('width', '75%');
+                }
+                break;
+            case '1x':
+                // 360 x 203
+                $('#video-orgsize').addClass('hidden');
+                $('#video-expand').removeClass('hidden').show();
+                $('video').attr({'width':V_WIDTH,'height':V_HEIGHT});
+                $('#video-ctrl-wrapper').css({'width':V_WIDTH});
+                $('.video-ctrl-center').css('width', '56%');
+                break;
+            default:
+                // 360 x 203
+                $('#video-orgsize').addClass('hidden');
+                $('#video-expand').removeClass('hidden').show();
+                $('video').attr({'width':V_WIDTH,'height':V_HEIGHT});
+                $('#video-ctrl-wrapper').css({'width':V_WIDTH});
+                $('.video-ctrl-center').css('width', '56%');
+                break;
+        }
+        // save in cookie
+        setCookie('xelements_video', s);
+    }
+    
+    
+    function get_comments(element_id, scolldown_id) {
+        $('#comments-list').empty().append(loading_icon);
+        $.ajax({
+            url: '{{=URL("ajaxcalls", "getComments")}}',
+            dataType: 'html',
+            data: {
+                element_id: element_id,
+                }
+        })
+        .done(function(data) {
+            // refresh comments list
+            if (data !== null) {
+                if (data !== '') {
+                    $('#comments-list').empty().append(data);
+                } else {
+                    $('#comments-list').empty().append("<span class='muted'>No comments</span>");
+                }
+                
+                if (typeof scolldown_id !== 'undefined') {
+                    $('body').animate({scrollTop:$(scolldown_id).offset().top-100},300);
+                }
+            }
+        });
+    }
+    
+    // Comment
+    $(document).on('click', '.comment-submit', function() {
+        // validate
+        var element_id = $(this).data('application');
+        var $comment_text = $('.comment-input');
+        var text = $comment_text.val();
+        
+        if (text === '') {
+            $comment_text.parent().addClass('has-error')
+            return;
+        } else {
+            $comment_text.parent().removeClass('has-error')
+        }
+        
+        // good, submit
+        $.ajax({
+            url: '{{=URL("ajaxcalls", "addComment")}}',
+            data: {
+                element_id: element_id,
+                content: text,
+                element_name: $('.element-title').text(),
+            }
+        })
+        .done(function(data) {
+            if (data !== '0') {
+                // success - refresh comments list
+                $comment_text.val('');
+                get_comments(element_id, '#comments-list');
+            } else {
+                alert('Error! Comment not created.');
+            }
+            
+        });
+    });
+    
+    $(document).on('click', '.reply-icon', function() {
+        var $this = $(this);
+        $this.closest('.comments').find('.reply-input').removeClass('in'); // collapse all reply inputs
+        var $reply_input_parent = $this.closest('.app-comment').find('.reply-input');
+        $reply_input_parent.addClass('in');
+        var reply_text = $reply_input_parent.find('input').val();
+    });
+    
+    $(document).on('click', '.reply-submit', function() {
+        var $reply_input = $(this).prev();
+        var text = $reply_input.val().trim();
+        if (text.length < 2) {
+            $reply_input.parent().addClass('has-error');
+            return;
+        }
+        $reply_input.parent().removeClass('has-error');
+        
+        var element_id = $(this).data('application');
+        var comment_id = $(this).data('comment');
+        
+        $.ajax({
+            url: '{{=URL("ajaxcalls", "addReply")}}',
+            data: {
+                element_id: element_id,
+                comment_id: comment_id,
+                content: text,
+                element_name: $('.element-title').text(),
+            }
+        })
+        .done(function(data) {
+            if (data !== '0') {
+                // success - refresh comments list
+                $reply_input.val('');
+                get_comments(element_id, '#comment-'+comment_id);
+            } else {
+                alert('Error! Reply not created.');
+            }
+        });
+    });
+    // auto height comment textarea
+    $(document).on('keyup', '.comment-input', function(e) {
+        this.style.height = '24px';
+        var adjust_height = this.scrollHeight;
+        if (navigator.userAgent.indexOf('Firefox')!=-1) {
+            adjust_height += 30;
+        }
+        this.style.height = adjust_height + 'px';
+    });
+    
+    var li_template = '<li class="mini-grid-li" data-elementid="{0}" id="{1}" style="background-color:#{2};">' +
+    '<a href="{3}">' + '<div class="panel-thumbnail">' + '<img src="{4}">' + '</div>' +
+    '<div class="grid-label">' +
+    '<span class="grid-name">{5}</span>' +
+    '<span class="grid-btns pull-right">' +
+    '<i class="{6} header-icon-btn" title="{7}"></i>{8}' +
+    '</span></div></a>' +
+    '<input class="hidden element-file-path" value="{9}">' +
+    '</li>';
+    
+    // fave, playlist btns
+    $(document).on('click', '#add-favourite', function() {
+        var $current_playlist = $('.tab-pane.active');
+        if ($current_playlist.attr('id') != 'tab-playlist-faves') {
+            $('#playlist-select option:eq(0)').prop('selected', true).tab('show');
+            $current_playlist = $('#tab-playlist-faves');
+        }
+        // create mini-grid-li
+        var $data = $(this).closest('.element-header');
+        var name = $data.find('.element-title').text();
+        var element_id = $data.data('lid').split('-').pop();
+        var link = '{{=URL(c="detail", f="index")}}' + '/' + element_id;
+        var fav_cls = 'fa fa-star favourite-remove';
+        var fav_tip = 'Remove from Favourite';
+        var pl_btn = '';
+        var filepath = $('#element-filepath').text();
+        var li = li_template.format($data.data('lid'), element_id, $data.data('colour'), link, $data.data('thumb'), name, fav_cls, fav_tip, pl_btn, filepath);
+        
+        $(this).removeClass('fa-star-o').addClass('fa-star');
+        
+        addToPlaylist($(li), $current_playlist);
+    });
+    
+    $(document).on('click', '#remove-favourite', function() {
+        // delete from favourite list
+        $(this).removeClass('fa-star').addClass('fa-star-o');
+        var $data = $(this).closest('.element-header');
+        var element_id = $data.data('lid');
+        $('#tab-playlist-faves').find('#'+element_id).remove();
+        updatePlaylist('#tab-playlist-faves');
+    });
+    
+    $(document).on('click', '#add-playlist', function() {
+        var $current_playlist = $('.tab-pane.active');
+        if ($current_playlist.attr('id') == 'tab-playlist-faves') {
+            alert('Select a playlist to add the element.');
+            return;
+        }
+        // create mini-grid-li
+        var $data = $(this).closest('.element-header');
+        var name = $data.find('.element-title').text();
+        var element_id = $data.data('lid').split('-').pop();
+        var link = '{{=URL(c="detail", f="index")}}' + '/' + element_id;
+        var fav_cls = 'fa fa-star-o favourite-add';
+        var fav_tip = 'Add to Favourite';
+        var pl_btn = '<i class="fa fa-minus playlist-remove header-icon-btn" title="Remove from Playlist"></i>';
+        var filepath = $('#element-filepath').text();
+        var li = li_template.format($data.data('lid'), element_id, $data.data('colour'), link, $data.data('thumb'), name, fav_cls, fav_tip, pl_btn, filepath);
+        
+        addToPlaylist($(li), $current_playlist);
+    });
+    $(document).on('click', '#remove-playlist', function() {
+        // delete from playlist
+        //var $data = $(this).closest('.element-header');
+        //$data.data('lid');
+        alert("Please remove this element directly from the playlist");
+    });
+    
+    /* INIT */
+    $('img.lazy').lazyload({
+        threshold: 100
+    });
+    
+    var video_size = getCookie('xelements_video');
+    if (video_size !== '') {
+        changeScreenSize(video_size);
+    }
+    $(window).on('resize', function(e) {
+        changeScreenSize(getCookie('xelements_video'));
+    });
+    
+    
+    var copiers = new ZeroClipboard($('.copy-btn'));
+    get_comments({{=element_id}});
+    
+});
+</script>
+
+<script src="{{=URL('static','js/jquery-ui.min.js')}}" type="text/javascript"></script>

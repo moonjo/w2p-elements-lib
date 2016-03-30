@@ -1,0 +1,71 @@
+
+body {
+    background-color: #111;
+}
+input, textarea, select, .input-group-addon, .btn-default {
+    background-color: #aaa !important;
+    border-color: #888 !important;
+}
+hr {
+    border-top: 1px solid #aaa;
+}
+.filter-table, .modal-content {
+    background-color: #888;
+}
+.playlist-ctrl-btn:hover {
+    background-color: #aaa !important;
+}
+.user-panel, .ui-fancytree, .mini-grid-ul, .detail-row, .detail-tech-row {
+    background-color: #888 !important;
+}
+.detail-row, .detail-tech-row {
+    border-bottom: 1px solid #aaa;
+}
+.detail-label {
+    border-right: 1px solid #aaa;
+}
+.element-details {
+    border-left: 1px solid #777;
+    border-right: 1px solid #777;
+}
+.path-panel > .detail-row {
+    border-left: 1px solid #666;
+    border-right: 1px solid #666;
+}
+.video-detail-info {
+    border-left: 1px solid #aaa;
+}
+.detail-tech-header, .bootstrap-tagsinput {
+    background-color: #aaa;
+}
+.detail-tech-label {
+    color: #555;
+}
+.detail-tech-info.middle {
+    border-left: 1px solid #aaa;
+    border-right: 1px solid #aaa;
+}
+.navbar-default {
+    background-color: #bbb !important;
+    border-color: #aaa !important;
+    color: #fff !important;
+}
+.fancytree-container {
+    border-bottom-radius: 3px;
+}
+
+#share-url {
+    font-weight: 700;
+}
+#address > span {
+    color: #aaa;
+}
+#playlist-select, .playlist-ctrl-btn {
+    border-color: #888;
+}
+#tree-toggle-cat, #tree-toggle-proj {
+    border-bottom-left-radius: 0;
+}
+#tree-clear-cat, #tree-clear-proj {
+    border-bottom-right-radius: 0;
+}

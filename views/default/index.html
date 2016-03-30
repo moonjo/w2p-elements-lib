@@ -1,0 +1,892 @@
+{{extend 'layout_bootstrap3.html'}}
+{{include 'common.html'}}
+
+{{
+import os
+xelements_css = '%sstatic/%s' % (request.folder, 'css/xelements.css')
+xelements_mtime = str(int(os.path.getmtime(xelements_css)))
+main_css = '%sstatic/%s' % (request.folder, 'css/main.css')
+main_mtime = str(int(os.path.getmtime(main_css)))
+dark_css = '%sstatic/%s' % (request.folder, 'css/dark-theme.css')
+dark_mtime = str(int(os.path.getmtime(dark_css)))
+}}
+
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/jquery-ui.structure.min.css')}}" />
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/ticker_blue.css')}}" />
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/select2.min.css')}}" />
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/select2-bootstrap.css')}}" />
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'fancytree/skin-win8/ui.fancytree.min.css')}}"/>
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/bootstrap-tagsinput.css')}}" />
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/xelements.css')}}?{{=xelements_mtime}}" />
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/main.css')}}?{{=main_mtime}}" />
+<link rel="stylesheet" type="text/css" href="{{=URL('static', 'css/dark-theme.css')}}?{{=dark_mtime}}" />
+
+<style>
+.bootstrap-tagsinput {
+    width: 100%;
+}
+.tree-project {
+    width: 15px;
+    height: 15px;
+    background: rgba(0,0,0,0) url({{=URL("static","/images/sg_icon_image_map.png")}}) -135px -64px no-repeat;
+}
+.tree-branch {
+    width: 15px;
+    height: 15px;
+    background: rgba(0,0,0,0) url({{=URL("static","/images/sg_icon_image_map.png")}}) -30px -0 no-repeat;
+}
+.tree-category {
+    width: 12px;
+    height: 14px;
+    background: rgba(0,0,0,0) url({{=URL("static","/images/sg_icon_image_map.png")}}) -16px -0 no-repeat;
+}
+.newsticker_wrapper {
+    width: 103% !important;
+}
+.filter-row-tag.excess {
+    display:none;
+}
+.midspan {
+    margin-right: 10px;
+}
+</style>
+
+<!-- <div id="tree-matches"></div>
+<button id="test" class="btn btn-warning">TEST</button> -->
+
+<div class="container-fluid">
+  <div class="row">
+    
+    <ul id="ticker" class="newsticker">
+    {{for t in ticker:}}
+      {{=t}}
+    {{pass}}
+    </ul>
+    <br>
+    
+    <div class="left-panel col-md-4 col-lg-3">
+      
+      <div class="form-group">
+        <div class="btn-group input-group btn-group-justified" data-toggle="buttons">
+          <label class="btn btn-default active">
+            <input class='pane-switch' type="radio" name="leftview" id="left-tree" value="tree" checked>Tree</label>
+          <label class="btn btn-default" style="border-left:none;">
+            <input class='pane-switch' type="radio" name="leftview" id="left-filter" value="filter">Filter</label>
+        </div>
+      </div>
+      
+      <div class="form-group" style="text-align:center;color:#ddd;" title="Sort Order">
+        <label class="text-muted hidden-md" style="margin-bottom:0;vertical-align:-1px;">Sort: </label>
+        <label class="radio-inline">
+          <input class='sort-radio' name="sort-order" value="name" type="radio" checked> Name
+        </label>
+        <label class="radio-inline">
+          <input class='sort-radio' name="sort-order" value="resolution" type="radio"> Resolution
+        </label>
+        <label class="radio-inline">
+          <input class='sort-radio' name="sort-order" value="favourited" type="radio"> Faves
+        </label>
+      </div>
+      
+      <div class="form-group" style="text-align:center;border-radius:3px;background-color:#ccc;" title="Tree Type">
+        <label class="text-muted hidden-md" style="margin-bottom:0;vertical-align:-1px;">Tree: </label>
+        <label class="radio-inline">
+          <input id="tree-cat" class='tree-radio' name="tree-select" value="category" type="radio" checked> Category
+        </label>
+        <label class="radio-inline">
+          <input id="tree-proj" class='tree-radio' name="tree-select" value="project" type="radio"> Source
+        </label>
+      </div>
+      
+      <!-- tree pane -->
+      <div id='tree-pane'>
+          
+          <!-- category tree -->
+          <div id="tree-div-cat" class="list-group tree-div">
+            <div id="tree-search-cat" class="input-group">
+              <span class="input-group-btn">
+                <button id="tree-toggle-cat" class="btn btn-default"><i class="fa fa-chevron-circle-down"></i></button>
+              </span>
+              <input id="tree-query-cat" class="form-control" placeholder="Filter Category" type="text">
+              <span class="input-group-btn">
+                <button id="tree-clear-cat" class="btn btn-default"><i class="fa fa-times"></i></button>
+              </span>
+            </div>
+            <div id="filter-tree-cat" class="ul-tree">{{=cat_tree}}</div>
+          </div>
+          
+          <!-- project tree -->
+          <div id="tree-div-proj" class="list-group tree-div" style="display:none;">
+            <div id="tree-search-proj" class="input-group">
+              <span class="input-group-btn">
+                <button id="tree-toggle-proj" class="btn btn-default"><i class="fa fa-chevron-circle-down"></i></button>
+              </span>
+              <input id="tree-query-proj" class="form-control" placeholder="Filter Category" type="text">
+              <span class="input-group-btn">
+                <button id="tree-clear-proj" class="btn btn-default"><i class="fa fa-times"></i></button>
+              </span>
+            </div>
+            <div id="filter-tree-proj" class="ul-tree">{{=proj_tree}}</div>
+          </div>
+      </div>
+      
+      <!-- filter pane -->
+      <div id="filter-pane" class="">
+        {{=filterpanel}}
+      </div>
+      
+    </div>
+    
+    <!-- <div class="col-md-8 col-lg-9"> -->
+    <div class="col-md-5 col-lg-7">
+      <!-- grid panel -->
+      <div id="grid-div">{{=grid}}</div>
+      <div id="search-div" style="display:none;">{{=searched}}</div>
+    </div>
+    
+    <div class="user-panel col-md-3 col-lg-2 hidden-xs">
+      {{=navpanel}}
+    </div>
+    
+    <div id="playlist-preview"></div>
+    
+  </div>
+</div>
+
+<!-- Detail panel -->
+<div class="row-fluid">
+    <div id="detail-panel" class="span10">
+        <div class="">
+            <a href="#" id="clear-tabs" class="click-btn" title="Clear tabs"><i class="fa fa-times-circle fa-lg"></i></a>
+        </div>
+        <div id="detail-tabs">
+          
+        </div>
+    </div>
+</div>
+
+<div id="error-dlg" class="modal fade bs-example-modal-sm" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div id="error-dlg-body" class="modal-body"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="loading-dlg" class="modal fade" role="dialog" style="width: 300px;">
+  <div class="active" style="position:relative;">
+    <i class="fa fa-spin fa-5x fa-refresh text-primary"></i>
+  </div>
+</div>
+
+<div id="loading-bar-dlg" class="modal fade" role="dialog" style="width: 300px;">
+  <div class="progress progress-striped active" style="position:relative;">
+    <div class="progress-bar loading-bar" style="width:100%;"></div>
+  </div>
+</div>
+
+<div class="scroll-top-wrapper">
+  <span class="scroll-top-inner">
+    <i class="fa fa-3x fa-arrow-circle-up"></i>
+  </span>
+</div>
+
+<script type="text/javascript">
+    /*
+      DOCUMENT READY
+    */
+    $(document).ready(function() {
+        
+        var tree_num = 0;
+        var search_num = 0;
+        
+        $('img.lazy').lazyload({
+            threshold: 100
+        });
+        
+        /* Newsticker */
+        $('#ticker').newsticker({
+            style: 'fade',
+            tickerTitle: 'Recent Updates',
+        });
+        
+        $('#filter-pane').hide();
+        $('#tree-div-cat').show();
+        
+        // select playlist
+        var playlist_id = "{{=playlistval}}";
+        if (playlist_id !== '') {
+            var $opt = $('#playlist-select option[data-playlistid="'+playlist_id+'"]');
+            if ($opt.length) {
+                $('#playlist-select option:selected').removeAttr('selected');
+                $opt.attr('selected','selected').trigger('change');
+            }
+        }
+        
+        /* Grid size checker */
+        function sizeCheck() {
+            if ($('#size-toggle').is(':checked')) {
+                $('.grid-li').addClass('small');
+                $('.grid-thumbnail').addClass('small');
+            } else {
+                $('.grid-li').removeClass('small');
+                $('.grid-thumbnail').removeClass('small');
+            }
+        }
+        
+        function updateFilteredNumber(n) {
+            $('#filter-result-num').text('Found '+n+' elements');
+        }
+        
+        /* filter by tags */
+        function filterTags(target, tag_ons, vendor_ons, episode_ons,
+                supervisor_ons, tag_nots, vendor_nots, episode_nots,
+                supervisor_nots) {
+            
+            var operand = '';
+            if ($('#tag-condition').val() == 'or') {
+                operand = ',';
+            }
+            
+            // filter TAG ONS
+            if (tag_ons.length > 0) {
+                var tagonstr = tag_ons.join(operand).replace(/([#!/\?:])/g, "\\$1");
+                target = $(target).filter(tagonstr);
+            }
+            
+            var tmp = [];
+            var vendor_str = vendor_ons.join(',');
+            var episode_str = episode_ons.join(',');
+            var supervisor_str = supervisor_ons.join(',');
+            
+            target.each(function() {
+                var vadd = false;
+                var eadd = false;
+                var sadd = false;
+                
+                if (vendor_str !== "") {
+                    var vendor_val = $(this).data('vendor');
+                    if ((vendor_val !== "") && (vendor_str.indexOf(vendor_val) > -1)) {
+                        vadd = true;
+                    }
+                } else {
+                    vadd=true;
+                }
+                
+                if (episode_str !== "") {
+                    var episode_val = $(this).data('episode');
+                    if ((episode_val !== "") && (episode_str.indexOf(episode_val) > -1)) {
+                        eadd = true;
+                    }
+                } else {
+                    eadd=true;
+                }
+                
+                if (supervisor_str !== "") {
+                    var supervisor_val = $(this).data('supervisor');
+                    if ((supervisor_val !== "") && (supervisor_str.indexOf(supervisor_val) > -1)) {
+                        sadd = true;
+                    }
+                } else {
+                    sadd=true;
+                }
+                
+                if (vadd && eadd && sadd) { tmp.push($(this)); }
+                
+            })
+            if (vendor_str !== "" || episode_str !== "" || supervisor_str !== "") {
+                target = $(tmp).map(function () {return this.toArray();});
+            }
+            
+            // filter TAG NOTS
+            if (tag_nots.length > 0) {
+                var tagnotstr = tag_nots.join(',').replace(/([#!/\?:])/g, "\\$1");
+                target = $(target).not(tagnotstr);
+            }
+            
+            tmp = [];
+            vendor_str = vendor_nots.join(',');
+            episode_str = episode_nots.join(',');
+            supervisor_str = supervisor_nots.join(',');
+            
+            target.each(function() {
+                var vadd = false;
+                var eadd = false;
+                var sadd = false;
+                
+                if (vendor_str !== "") {
+                    var vendor_val = $(this).data('vendor');
+                    if ((vendor_val === "") || (vendor_str.indexOf(vendor_val) == -1)) {
+                        vadd = true;
+                    }
+                } else {
+                    vadd = true;
+                }
+                
+                if (episode_str !== "") {
+                    var episode_val = $(this).data('episode');
+                    if ((episode_val === "") || (episode_str.indexOf(episode_val) == -1)) {
+                        eadd = true;
+                    }
+                } else {
+                    eadd = true;
+                }
+                
+                if (supervisor_str !== "") {
+                    var supervisor_val = $(this).data('supervisor');
+                    if ((supervisor_val === "") || (supervisor_str.indexOf(supervisor_val) == -1)) {
+                        sadd = true;
+                    }
+                } else {
+                    sadd = true;
+                }
+                
+                if (vadd && eadd && sadd) { tmp.push($(this)); }
+            })
+            
+            if (vendor_str !== "" || episode_str !== "" || supervisor_str !== "") {
+                target = $(tmp).map(function () {return this.toArray();});
+            }
+            return target;
+        }
+        
+        function checkFilterMode() {
+            return $('input[name="filter-method"]:checked').val();
+        }
+        
+        /* filter elements */
+        function filterGrid() {
+            // Bug: when page load in one entity view, other entity view is not filtered
+            // resulting in Omit shots/assets showing
+            
+            var filtermode = checkFilterMode();
+            if (filtermode === 'tree') {
+                var $elements = $('#grid-div > ul > li');
+                
+            } else if (filtermode === 'current') {
+                var $elements = $('#search-div > ul > li');
+            } else {
+                return;
+            }
+            
+            var total_show = 0;
+            
+            var $elements_numshow = $('#filter-result-num');
+            
+            if ($elements.length == 0) {
+                return false;
+            }
+            
+            $elements.hide();
+            
+            var filters = [];
+            $('.filter-option:checked').each(function() {
+                filters.push($(this).val());
+            });
+            
+            var namestr = $('#filter-name-val').val().trim();
+            if (namestr !== '') {
+                var p = new RegExp(namestr, 'gi');
+                $elements = $elements.filter(function() {
+                    return p.test($(this).find('.grid-name').text());
+                });
+            }
+            
+            var sourcestr = $('#filter-source-val').val().trim();
+            if (sourcestr !== '') {
+                var p = new RegExp(sourcestr, 'gi');
+                $elements = $elements.filter(function() {
+                    return p.test($(this).data('source'));
+                });
+            }
+            
+            if (filters.length === 0) {
+                $elements.show();
+                total_show = $elements.length;
+            } else {
+                filter_str = '.' + filters.join(',.');
+                $elements = $elements.filter(filter_str);
+                $elements.show();
+                total_show = $elements.length;
+            }
+            $elements_numshow.html('Found '+total_show+' element' + (total_show>1?'s':'') );
+            
+        }//end filterGrid()
+        
+        
+        /*
+         *
+         */
+        
+        function gridElements(elements) {
+            //console.log(elements);
+        }
+        
+        // switch between category tree and filter pane
+        $(document).on('change', '.pane-switch', function() {
+            if (this.value === 'tree') {
+                $('#filter-pane').hide();
+                $('#tree-pane').show();
+            } else {
+                $('#tree-pane').hide();
+                $('#filter-pane').show();
+            }
+        });
+        
+        
+        function switchGridView(v) {
+            if (v === 'tree') {
+                $('#search-div').removeClass('active').hide();
+                $('#grid-div').addClass('active').show();
+                updateFilteredNumber(tree_num);
+            } else {
+                $('#grid-div').removeClass('active').hide();
+                $('#search-div').addClass('active').show();
+                updateFilteredNumber(search_num);
+            }
+            if (v === 'new') {
+                $('#new-search').show();
+            } else {
+                $('#new-search').hide();
+            }
+        }
+        // switch between new search and filter current
+        $('input[type=radio][name=filter-method]').on('change', function() {
+            switchGridView(this.value);
+        });
+        
+        $(document).on('change', '.sort-radio', function() {
+            sortGrid($(this).val());
+        });
+        
+        var active_tree = '#filter-tree-cat';
+        
+        function treeSwitch(val) {
+            if (val === 'category') {
+                $('#tree-div-proj').hide();
+                $('#tree-div-cat').show();
+                active_tree = '#filter-tree-cat';
+            } else {
+                $('#tree-div-cat').hide();
+                $('#tree-div-proj').show();
+                active_tree = '#filter-tree-proj';
+            }
+        }
+        
+        $(document).on('change', '.tree-radio', function() {
+            treeSwitch($(this).val());
+        });
+        
+        
+        function initTree(tree_type) {
+            var treeid, queryid, toggleid;
+            if (tree_type === 'category') {
+                treeid = '#filter-tree-cat';
+                queryid = '#tree-query-cat';
+                toggleid = '#tree-toggle-cat';
+                clearid = '#tree-clear-cat';
+            } else {
+                treeid = '#filter-tree-proj';
+                queryid = '#tree-query-proj';
+                toggleid = '#tree-toggle-proj';
+                clearid = '#tree-clear-proj';
+            }
+            
+            $(treeid).fancytree({
+                extensions: ['filter'],
+                filter: {
+                    mode: 'hide'
+                },
+                autoCollapse: false,
+                clickFolderMode: 1,
+                selectMode: 1,
+                activate: function(event, data) {
+                    //var key = data.node.key;
+                    //var key = data.node.data.type + '/' + data.node.data.filterid;
+                    var key = data.node.key.split('-').join('/');
+                    
+                    $('.filter-method-div label.active').removeClass('active');
+                    $('#filter-method-tree').addClass('active').find('input').prop('checked', true);
+                    switchGridView('tree');
+                    
+                    $('#loading-dlg').modal('show');
+                    $.ajax({
+                        url: '{{=URL("getElementsGridHTML")}}',
+                        dataType: 'html',
+                        data: {
+                            type: data.node.data.type,
+                            filterid: data.node.data.filterid,
+                            project: data.node.data.project,
+                        },
+                    })
+                    .done(function(data) {
+                        $('#loading-dlg').modal('hide');
+                        if (data !== '') {
+                            $('#grid-div').empty().append(data);
+                        }
+                        // Init Grid
+                        $('.grid-li').draggable({
+                            appendTo: 'body',
+                            helper: 'clone',
+                            start: function(ev, ui) {
+                                hidePreview();
+                            },
+                        });
+                        previewInit('.grid-thumbnail');
+                        
+                        $('img.lazy').lazyload({
+                            threshold: 100,
+                        });
+                        tree_num = $('#grid-div li').length;
+                        filterGrid();
+                        sortGrid();
+                        sizeCheck();
+                        $('html,body').animate({scrollTop:0},0);
+                        
+                        // update hash-bang
+                        window.location.hash = '!/' + key;
+                    });
+                },
+            });
+            
+            var root = $(treeid).fancytree('getRootNode');
+            root.sortChildren(null, true);
+            var tree = $(treeid).fancytree('getTree');
+            
+            // activate initial tree node
+            {{if treenode != '':}}
+            tree.activateKey('{{=treenode}}');
+            {{pass}}
+            
+            $(document).on('keyup', queryid, function(e) {
+                var opts = {autoExpand: true};
+                var match = $(this).val();
+                
+                if(e && e.which === $.ui.keyCode.ESCAPE || $.trim(match) === "") {
+                    $(queryid).val("");
+                    $('#tree-matches').text("");
+                    tree.clearFilter();
+                    return;
+                }
+                // Pass a string to perform case insensitive matching
+                var n = tree.filterBranches(match, opts);
+                $('#tree-matches').text("(" + n + " matches)");
+            }).focus();
+            
+            // Tree Filter Options
+            $(document).on('click', clearid, function(e) {
+                $(queryid).val("");
+                $('#tree-matches').text("");
+                tree.clearFilter();
+            });
+            $(document).on('change', '#hideMode', function(e) {
+                tree.options.filter.mode = $(this).is(':checked') ? "hide" : "dimm";
+                tree.clearFilter();
+                $(queryid).keyup();
+            }).prop('checked', true);
+            
+            var tree_expanded = true;
+            $(document).on('click', toggleid, function() {
+                if (tree_expanded) {
+                    $(toggleid+' > i').removeClass('fa-chevron-circle-down').addClass('fa-chevron-circle-up');
+                    root.visit(function(node){node.setExpanded(false);});
+                    tree_expanded = false;
+                } else {
+                    root.visit(function(node){node.setExpanded(true);});
+                    $(toggleid+' > i').removeClass('fa-chevron-circle-up').addClass('fa-chevron-circle-down');
+                    tree_expanded = true;
+                }
+            });
+        }
+        
+        /*
+          Fancytree
+        */
+        initTree('category');
+        initTree('project');
+        
+        
+        // Grid Sort
+        function sortGrid(key) {
+            if (typeof key == 'undefined') {
+                key = $('input[name="sort-order"]:checked').val();
+                //key = $('.sort-radio:checked').val();
+            }
+            
+            var $eul;
+            if ($('#grid-div').hasClass('active')) {
+                $eul = $('#grid-div > .grid-ul');
+            } else {
+                $eul = $('#search-div > .grid-ul');
+            }
+            
+            //var $eitems = $('#grid-ul li').get();
+            var $eitems = $eul.find('li').get();
+            
+            $eitems.sort(function(a, b) {
+                var keya;
+                var keyb;
+                switch (key) {
+                    case 'name':
+                        keya = $(a).text().toLowerCase();
+                        keyb = $(b).text().toLowerCase();
+                        break;
+                    case 'resolution':
+                        //var re = new RegExp(/resolution-(\d+[xX]\d+\s?|unknown)/);
+                        /* 
+                        instead of filtering exact resoultion, do resolution class filter
+                        ie. resolution-1920, resolution-720, etc..
+                        */
+                        var re = new RegExp(/resolution-(\d+\s?|unknown)/);
+                        
+                        keya = re.exec($(a).attr('class'));
+                        if (keya == null) {
+                            console.log($(a).attr('class'));
+                            keya = '';
+                        }
+                        
+                        if (keya.length) {
+                            keya = keya[1];
+                        } else {
+                            keya = '';
+                        }
+                        
+                        keyb = re.exec($(b).attr('class'));
+                        if (keyb.length) {
+                            keyb = keyb[1];
+                        } else {
+                            keyb = '';
+                        }
+                        break;
+                    case 'favourited':
+                        keya = $(a).data('favourited');
+                        keyb = $(b).data('favourited');
+                        if (keya < keyb) return 1;
+                        if (keya > keyb) return -1;
+                        return 0;
+                }
+                if (keya < keyb) return -1;
+                if (keya > keyb) return 1;
+                return 0;
+            });
+            
+            $.each($eitems, function(i, li) {
+                $eul.append(li);
+            });
+            $('img.lazy').trigger('appear');
+        }
+        
+        
+        /*
+        Filter Pane
+        */
+        $(document).on('click', '.filter-more-btn', function() {
+            //$(this).parent().find('.excess').show();
+            var $this = $(this);
+            if ( $this.hasClass('expanded') ) {
+                $this.removeClass('expanded').text('Show More');
+                $this.siblings('.boundary').css('border-bottom', 'none');
+                $this.siblings('.excess').hide();
+            } else {
+                $this.addClass('expanded').text('Show Less');
+                $this.siblings('.boundary').css('border-bottom', '1px dashed #aaa');
+                $this.siblings('.excess').show();
+            }
+        });
+        
+        $(document).on('keyup', '#filter-name-val, #filter-source-val', function() {
+            var val = $(this).val().trim();
+            delay(function() {
+                filterGrid();
+            },300);
+        });
+        
+        $(document).on('click', '.filter-option', function() {
+            filterGrid();
+            sortGrid();
+            
+            var $this = $(this);
+            var filter_cb = $this.val();
+            var checked = $this.is(':checked');
+            if (checked) {
+                // add
+                var exists = $('#current-filters').find('#rm-'+filter_cb);
+                if (exists.length === 0) {
+                    var tmp = filter_cb.split('-');
+                    var filter_name = $this.parent().text().replace(/\(\d+\)/, '');
+                    var filter_type = tmp[0];
+                    var filter_val = tmp[1];
+                    var icon_class;
+                    switch (filter_type) {
+                        case 'tag':
+                            icon_class = 'primary';
+                            break;
+                        case 'alpha':
+                            icon_class = 'danger';
+                            break;
+                        case 'resolution':
+                            icon_class = 'info';
+                            break;
+                        case 'colour':
+                            icon_class = 'success';
+                            break;
+                        default:
+                            icon_class = 'default';
+                    }
+                    var filter_icon =  '<span id="rm-'+filter_cb+'" class="tag label label-' + icon_class + '">' + filter_name +
+                    '<a class="tag-remove" data-value="'+filter_val+'" href="#"><i class="fa fa-times fa-lg"></i></a></span>';
+                    $('#current-filters').append($(filter_icon));
+                }
+            } else {
+                // remove
+                $('#current-filters').find('#rm-'+filter_cb).remove();
+            }
+            
+        });
+        
+        
+        function new_search() {
+            var namestr = $('#filter-name-val').val().trim();
+            var sourcestr = $('#filter-source-val').val().trim();
+            
+            var tags = [];
+            $('#filter-tag input:checked').each(function() {
+                tags.push($(this).val().split('-')[1]);
+            });
+            
+            var alpha = $('#filter-alpha-val')[0].checked;
+            
+            var resolution = [];
+            $('#filter-resolution input:checked').each(function() {
+                resolution.push($(this).val().split('-')[1]);
+            });
+            
+            var colourspace = [];
+            $('#filter-colourspace input:checked').each(function() {
+                colourspace.push($(this).val().split('-')[1]);
+            });
+            
+            var faves = $('#allfaves')[0].checked;
+            
+            if (!faves && namestr === '' && sourcestr === '' && (tags.length + alpha.length + resolution.length + colourspace.length === 0)) {
+                alert('Filter condition empty.');
+                return;
+            }
+            
+            $('#search-div').html('<div class="text-primary" style="text-align:center;margin-top:150px;">'+loading_icon_big+'</div>');
+            
+            $.ajax({
+                url: '{{=URL("ajaxcalls", "filteredGrid")}}',
+                dataType: 'html',
+                data: {
+                    name: namestr,
+                    source: sourcestr,
+                    tags: tags.join(','),
+                    alpha: alpha ? 1:0,
+                    resolution: resolution.join(','),
+                    colourspace: colourspace.join(','),
+                    faves: faves ? 1:0,
+                }
+            })
+            .done(function(data) {
+                if (data !== '') {
+                    $('.filter-method-div label.active').removeClass('active');
+                    $('#filter-method-current').removeAttr('disabled').addClass('active').find('input').prop('checked', true);
+                    $('#new-search').hide();
+                    
+                    $('#search-div').empty().html(data);
+                    $('img.lazy').lazyload({
+                        threshold: 100
+                    });
+                    search_num = $('#search-div li').length;
+                    updateFilteredNumber(search_num);
+                    previewInit('#search-div .grid-thumbnail');
+                    
+                }
+            })
+            .fail(function() {
+                $('#search-div').html('Error querying database.');
+            });
+        }
+        
+        $(document).on('click', '#new-search', function() {
+            new_search();
+        });
+        
+        
+        $(document).on('change', '#size-toggle', function() {
+            sizeCheck();
+        });
+        
+        /* Filters */
+        $(document).on('click', '#reset-filter', function() {
+            $('#current-filters').empty();
+            $('#filter-name-val').val('');
+            $('#filter-source-val').val('');
+            $('.tag-checkbox').prop('checked', false);
+            filterGrid();
+            sortGrid();
+        });
+        
+        $(document).on('click', '.tag-remove', function() {
+            var $this = $(this);
+            var filter_val = $this.data('value');
+            var cb_val = $this.parent().attr('id').replace('rm-','');
+            var cb_type = cb_val.split('-')[0];
+            var $cb = $('#filter-'+cb_type).find('input[value="'+cb_val+'"]');
+            $cb.prop('checked', false);
+            $(this).parent().remove();
+            filterGrid();
+            sortGrid();
+        });
+        
+        /*
+        Activate tree
+        */
+        function checkHashLocation() {
+            var hashloc = window.location.hash;
+            // #!/category/32 || #!/category/showname/32
+            if (hashloc !== '') {
+                var tmp = hashloc.slice(3).split('/');
+                switch (tmp[0]) {
+                    case 'tag':
+                        // tag checkbox
+                        $('#left-filter').click();
+                        $('#filter-method-new').click();
+                        $('.tag-checkbox[value="tag-'+tmp[1]+'"]').prop('checked', true);
+                        new_search();
+                        break;
+                    default:
+                        if (tmp.length === 3 || tmp[0] === 'source') {
+                            $('#tree-proj').prop('checked', true);
+                            treeSwitch('project');
+                        } else {
+                            $('#tree-cat').prop('checked', true);
+                            treeSwitch('category');
+                        }
+                        var key = hashloc.slice(3).replace(/\//g,'-');
+                        $(active_tree).fancytree('getTree').activateKey(key);
+                }
+            }
+        }
+        $(window).on('hashchange', function() {
+            /* this event is also called when tree node is selected manually
+            but since selecting current selected node doesn't repeat request it's ok (for now)
+            */
+            checkHashLocation();
+        });
+        
+        // check hash
+        checkHashLocation();
+        
+    });
+</script>
+
+<script src="{{=URL('static','js/jnewsticker.js')}}" type="text/javascript"></script>
+<script src="{{=URL('static','js/select2.min.js')}}" type="text/javascript"></script>
+<script src="{{=URL('static','fancytree/jquery.fancytree.min.js')}}" type="text/javascript"></script>
+<script src="{{=URL('static','fancytree/jquery.fancytree.filter.js')}}" type="text/javascript"></script>
+<script src="{{=URL('static','js/bootstrap-tagsinput.min.js')}}" type="text/javascript"></script>
